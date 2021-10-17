@@ -12,25 +12,20 @@ public protocol Action {
     var name: Name { get }
 }
 
+public struct AnyAction {
+    private let action: Any
+    public init<A: Action>(_ action: A) {
+        self.action = action
+    }
+}
+
 public extension Action {
     func then(other: Self) -> ActionFlow<Self> {
         ActionFlow(actions: [self, other])
     }
 
-    func and(other: Self.Name) -> ActionNameGroup<Self> {
-        ActionNameGroup(self.name, other)
-    }
-
-    func depends(on other: Self.Name) -> ActionNameGraph<Self> {
-        ActionNameGraph(dependencies: [other])
-    }
-
-    func depends(on others: ActionNameGroup<Self>) -> ActionNameGraph<Self> {
-        ActionNameGraph(dependencies: others.names)
-    }
-
-    func depends(on others: Self.Name...) -> ActionNameGraph<Self> {
-        ActionNameGraph(dependencies: others)
+    func and(other: Self.Name) -> ActionGroup<Self> {
+        ActionGroup(self.name, other)
     }
 }
 
@@ -45,7 +40,7 @@ public struct ActionFlow<A: Action> {
     }
 }
 
-public struct ActionNameGroup<A: Action> {
+public struct ActionGroup<A: Action> {
     fileprivate let names: [A.Name]
 
     public init(_ names: A.Name...) {
@@ -57,44 +52,13 @@ public struct ActionNameGroup<A: Action> {
     }
 
     public func and(_ other: Self) -> Self {
-        ActionNameGroup(self.names + other.names)
+        ActionGroup(self.names + other.names)
     }
 
     public func and(_ name: A.Name) -> Self {
-        ActionNameGroup(self.names + [name])
-    }
-
-    public func depends(on other: A.Name) -> ActionNameGraph<A> {
-        ActionNameGraph(dependencies: [other])
-    }
-
-    public func depends(on others: ActionNameGroup<A>) -> ActionNameGraph<A> {
-        ActionNameGraph(dependencies: others.names)
-    }
-
-    public func depends(on others: A.Name...) -> ActionNameGraph<A> {
-        ActionNameGraph(dependencies: others)
+        ActionGroup(self.names + [name])
     }
 }
 
-public struct ActionNameGraph<A: Action> {
-    fileprivate let dependencies: [A.Name]
-
-    public func depends(on other: A.Name) -> Self {
-        ActionNameGraph(dependencies: self.dependencies + [other])
-    }
-
-    public func depends(on others: ActionNameGraph) -> Self {
-        ActionNameGraph(dependencies: self.dependencies + others.dependencies)
-    }
-
-    public func depends(on others: ActionNameGroup<A>) -> Self {
-        ActionNameGraph(dependencies: self.dependencies + others.names)
-    }
-
-    public func depends(on others: A.Name...) -> Self {
-        ActionNameGraph(dependencies: self.dependencies + others)
-    }
-}
-
+extension ActionGroup: Codable where A.Name: Codable {}
 extension ActionFlow: Codable where A: Codable {}

@@ -55,20 +55,20 @@ enum PlayerAction: Action {
     }
 }
 
-extension ActionNameGroup {
-    static var account: ActionNameGroup<PlayerAction> {
+extension ActionGroup {
+    static var account: ActionGroup<PlayerAction> {
         .init(.fetchAccount, .patchEmail, .registerNewDevice)
     }
 
-    static var player: ActionNameGroup<PlayerAction> {
+    static var player: ActionGroup<PlayerAction> {
         .init(.load, .play, .stop, .skip)
     }
 
-    static var authenticated: ActionNameGroup<PlayerAction> {
+    static var authenticated: ActionGroup<PlayerAction> {
         .account.and(.player)
     }
 
-    static var admin: ActionNameGroup<PlayerAction> {
+    static var admin: ActionGroup<PlayerAction> {
         .init(.closeAccount)
     }
 }
@@ -76,7 +76,7 @@ extension ActionNameGroup {
 /// To make things easier to follow, the tests are working with a set of toy actions that emulate an app that has authentication, both as a regular user and admin, a simple audio player available only to authenticated users and a set of admin-specific actions.
 final class DispatcherTests: XCTestCase {
     func testExample() throws {
-        let dispatcher = Dispatcher<PlayerAction>()
+        let dispatcher = Dispatcher()
         dispatcher.fireAndForget(PlayerAction.play)
     }
 }
