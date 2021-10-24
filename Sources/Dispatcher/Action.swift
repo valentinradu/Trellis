@@ -8,7 +8,7 @@
 import Foundation
 
 public protocol Action {
-    associatedtype Name
+    associatedtype Name: Equatable
     var name: Name { get }
 }
 
@@ -26,6 +26,10 @@ public extension Action {
 
     func and(other: Self.Name) -> ActionGroup<Self> {
         ActionGroup(self.name, other)
+    }
+    
+    func `in`(group: ActionGroup<Self>) -> Bool {
+        group.names.contains(self.name)
     }
 }
 

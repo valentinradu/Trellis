@@ -3,17 +3,30 @@ import Combine
 public protocol Worker {
     associatedtype A: Action
     func execute(_ action: A) -> AnyPublisher<Void, Error>
+    @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+    func execute(_ action: A) async throws
+}
+
+public extension Worker {
+    func execute(_ action: A) -> AnyPublisher<Void, Error> {
+        return Just(())
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
+    }
+
+    @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+    func execute(_ action: A) async throws {}
 }
 
 public protocol Middleware {
     associatedtype A: Action
-    func redirect(action: A) -> A
+    func redirect(action: A) -> Redirection<A>
     func `defer`(action: A) -> Deferral<A>
 }
 
 public struct AnyMiddleware {
     private let middleware: Any
-    public init<W: Worker>(_ middleware: W) {
+    public init<W: Middleware>(_ middleware: W) {
         self.middleware = middleware
     }
 }
@@ -30,8 +43,8 @@ extension Middleware {
 
 public enum Deferral<A: Action> {
     case none
-    case lookBehind(action: A)
-    case lookAhead(action: A)
+    case lookBehind(name: A.Name)
+    case lookAhead(name: A.Name)
 }
 
 public enum Redirection<A: Action> {
@@ -52,6 +65,14 @@ public class Dispatcher {
     private var middlewares: [AnyMiddleware] = []
     private var cancellables: Set<AnyCancellable> = []
     public private(set) var history: [AnyAction] = []
+
+    public func register<M: Middleware>(middleware: M) {
+        self.middlewares.append(AnyMiddleware(middleware))
+    }
+
+    public func register<W: Worker>(worker: W) {
+        self.workers.append(AnyWorker(worker))
+    }
 
     public func fire<A: Action>(_ action: A,
                                 completion: Completion?)
