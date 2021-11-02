@@ -11,7 +11,7 @@ import XCTest
 class State {}
 
 /// To make things easier to follow, the tests are working with a set of toy actions that emulate an app that has authentication, both as a regular user and admin, a simple audio player available only to authenticated users and a set of admin-specific actions.
-enum TestAction: Action {
+enum TestAction: Action, Equatable {
     // Authentication
     case login(email: String, password: String)
     case logout
@@ -32,11 +32,11 @@ enum TestAction: Action {
     case closeAccount
 
     // UI
-    case alert(error: Error)
+    case alert(title: String, description: String)
     case nav(path: String)
 
     // This section is required because Swift doesn't synthetize the **name** of the enum and we can't use the enum itself since some have associated values (e.g. `.login(email: String, password: String)`
-    enum Name {
+    enum Name: Equatable {
         case login
         case logout
         case resetPassword
@@ -71,7 +71,7 @@ enum TestAction: Action {
     }
 }
 
-enum TestError: Error {
+enum TestError: Error, Equatable {
     case accessDenied
 }
 
@@ -94,26 +94,12 @@ extension ActionGroup {
 }
 
 @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
-class PlayerService: Worker {
+class TestService: Worker {
     var actions: [(Date, TestAction)] = []
 
     func execute(_ action: TestAction) async throws {
-        if action.in(group: .playerGroup) {
-            await Task.sleep(UInt64(0.3 * Double(NSEC_PER_SEC)))
-            actions.append((Date.now, action))
-        }
-    }
-}
-
-@available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
-class GatekeeperService: Worker {
-    var actions: [(Date, TestAction)] = []
-
-    func execute(_ action: TestAction) async throws {
-        if action.in(group: .authenticatedGroup) {
-            await Task.sleep(UInt64(0.3 * Double(NSEC_PER_SEC)))
-            actions.append((Date.now, action))
-        }
+        await Task.sleep(UInt64(0.3 * Double(NSEC_PER_SEC)))
+        actions.append((Date.now, action))
     }
 }
 

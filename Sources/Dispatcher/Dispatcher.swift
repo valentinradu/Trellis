@@ -55,12 +55,17 @@ public struct AnyWorker {
     }
 }
 
+public enum ActionStoreName {
+    case queue
+    case history
+}
+
 public class Dispatcher {
     public typealias Completion = (Result<Void, Error>) -> Void
     private var workers: [AnyWorker] = []
     private var middlewares: [AnyMiddleware] = []
     private var cancellables: Set<AnyCancellable> = []
-    public private(set) var history: [AnyAction] = []
+    public private(set) var store: [ActionStoreName: [AnyAction]] = [:]
 
     public func register<M: Middleware>(middleware: M) {
         self.middlewares.append(AnyMiddleware(middleware))
@@ -68,6 +73,14 @@ public class Dispatcher {
 
     public func register<W: Worker>(worker: W) {
         self.workers.append(AnyWorker(worker))
+    }
+    
+    public func purge(from: ActionStoreName) {
+        store.removeValue(forKey: from)
+    }
+    
+    public func purge() {
+        store = [:]
     }
 
     public func fire<A: Action>(_ action: A,
@@ -128,6 +141,20 @@ public class Dispatcher {
 
     @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
     public func fire<A: Action>(_ action: A) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
+            fire(action) {
+                switch $0 {
+                case .success:
+                    continuation.resume(returning: ())
+                case let .failure(error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+    
+    @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+    public func fire<A: Action>(_ action: ActionFlow<A>) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
             fire(action) {
                 switch $0 {
