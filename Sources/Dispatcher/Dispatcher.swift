@@ -20,8 +20,9 @@ public extension Worker {
 
 public protocol Middleware {
     associatedtype A: Action
-    func redirect(action: A) -> Redirection<A>
-    func `defer`(action: A) -> Deferral<A>
+    func pre(action: A) -> Rewrite<A>
+    func post(action: A)
+    func failure(action: A, error: Error)
 }
 
 public struct AnyMiddleware {
@@ -32,24 +33,19 @@ public struct AnyMiddleware {
 }
 
 extension Middleware {
-    func redirect(action: A) -> Redirection<A> {
+    func pre(action: A) -> Rewrite<A> {
         .none
     }
-
-    func `defer`(action: A) -> Deferral<A> {
-        .none
-    }
+    func post(action: A) {}
+    func failure(action: A, error: Error) {}
 }
 
-public enum Deferral<A: Action> {
+public enum Rewrite<A: Action> {
     case none
-    case lookBehind(name: A.Name)
-    case lookAhead(name: A.Name)
-}
-
-public enum Redirection<A: Action> {
-    case none
-    case to(action: A)
+    case redirect(to: A)
+    case after(matching: A.Name)
+    case deferUntil(matching: A.Name)
+    case fail(action: A, error: Error)
 }
 
 public struct AnyWorker {
