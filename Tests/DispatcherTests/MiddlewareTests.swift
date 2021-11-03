@@ -2,7 +2,7 @@
 import XCTest
 
 @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
-final class DispatcherTests: XCTestCase {
+final class MiddlewareTests: XCTestCase {
     private var dispatcher: Dispatcher!
     private var service: TestService!
     private var middleware: TestMiddleware!

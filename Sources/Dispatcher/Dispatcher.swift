@@ -20,8 +20,8 @@ public extension Worker {
 
 public protocol Middleware {
     associatedtype A: Action
-    func pre(action: A) -> Rewrite<A>
-    func post(action: A)
+    func pre(action: A) throws -> Rewrite<A>
+    func post(action: A) throws
     func failure(action: A, error: Error)
 }
 
@@ -36,16 +36,27 @@ extension Middleware {
     func pre(action: A) -> Rewrite<A> {
         .none
     }
+
     func post(action: A) {}
     func failure(action: A, error: Error) {}
 }
 
 public enum Rewrite<A: Action> {
+    public struct DeferOptions {
+        let lookBehind: Bool
+        let enqueueSimilarEvents: Bool
+
+        public init(lookBehind: Bool = false,
+                    enqueueSimilarEvents: Bool = false)
+        {
+            self.lookBehind = lookBehind
+            self.enqueueSimilarEvents = enqueueSimilarEvents
+        }
+    }
+
     case none
     case redirect(to: A)
-    case after(matching: A.Name)
-    case deferUntil(matching: A.Name)
-    case fail(action: A, error: Error)
+    case `defer`(until: A.Name, options: DeferOptions = .init())
 }
 
 public struct AnyWorker {
@@ -65,7 +76,7 @@ public class Dispatcher {
     private var workers: [AnyWorker] = []
     private var middlewares: [AnyMiddleware] = []
     private var cancellables: Set<AnyCancellable> = []
-    public private(set) var store: [ActionStoreName: [AnyAction]] = [:]
+    private var store: [ActionStoreName: [AnyAction]] = [:]
 
     public func register<M: Middleware>(middleware: M) {
         self.middlewares.append(AnyMiddleware(middleware))
@@ -74,13 +85,13 @@ public class Dispatcher {
     public func register<W: Worker>(worker: W) {
         self.workers.append(AnyWorker(worker))
     }
-    
+
     public func purge(from: ActionStoreName) {
-        store.removeValue(forKey: from)
+        self.store.removeValue(forKey: from)
     }
-    
+
     public func purge() {
-        store = [:]
+        self.store = [:]
     }
 
     public func fire<A: Action>(_ action: A,
@@ -152,7 +163,7 @@ public class Dispatcher {
             }
         }
     }
-    
+
     @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
     public func fire<A: Action>(_ action: ActionFlow<A>) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in

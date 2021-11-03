@@ -116,23 +116,25 @@ class TestMiddleware: Middleware {
     var postActions: [(Date, TestAction)] = []
     var failures: [(Date, TestAction, Error)] = []
 
-    func pre(action: TestAction) -> Rewrite<TestAction> {
+    func pre(action: TestAction) throws -> Rewrite<TestAction> {
         preActions.append((Date.now, action))
         // If account is unauthenticated but the action requires authentication, look behind, if login action was already fired, fire your action, if not, wait until it is and then fire your action
         if authState == .unauthenticated,
            action.in(group: .authenticatedGroup)
         {
-            return .after(matching: .login)
+            return .defer(until: .login,
+                          options: .init(lookBehind: true))
         }
 
         // If we have to register the device id, check if the account is unauthenticated, if so, look behind in history and fire `.registerNewDevice` either right away, if `.login` was already fired, or right after `.login` fires.
         // Alternatively, if the account is already authenticated, wait for `.fetchAccount` and fire right after it
         if action.name == .registerNewDevice {
             if authState == .unauthenticated {
-                return .after(matching: .login)
+                return .defer(until: .login,
+                              options: .init(lookBehind: true))
             }
             else {
-                return .deferUntil(matching: .fetchAccount)
+                return .defer(until: .login)
             }
         }
 
@@ -144,7 +146,7 @@ class TestMiddleware: Middleware {
         }
 
         if authState != .admin, action.in(group: .adminGroup) {
-            return .fail(action: action, error: TestError.accessDenied)
+            throw TestError.accessDenied
         }
 
         return .none
