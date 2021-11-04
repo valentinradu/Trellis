@@ -12,10 +12,28 @@ public protocol Action {
     var name: Name { get }
 }
 
-public struct AnyAction {
+public struct AnyEquatable: Equatable {
+    private let value: Any
+    private let equals: (Any) -> Bool
+
+    public init<E: Equatable>(_ value: E) {
+        self.value = value
+        self.equals = { $0 as? E == value }
+    }
+
+    public static func ==(lhs: AnyEquatable, rhs: AnyEquatable) -> Bool {
+        return lhs.equals(rhs.value)
+    }
+}
+
+public struct AnyAction: Action {
+    public typealias Name = AnyEquatable
+
     private let action: Any
+    public let name: Name
     public init<A: Action>(_ action: A) {
         self.action = action
+        self.name = AnyEquatable(action.name)
     }
 }
 
@@ -27,7 +45,7 @@ public extension Action {
     func and(other: Self.Name) -> ActionGroup<Self> {
         ActionGroup(self.name, other)
     }
-    
+
     func `in`(group: ActionGroup<Self>) -> Bool {
         group.names.contains(self.name)
     }

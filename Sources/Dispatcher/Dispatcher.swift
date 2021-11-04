@@ -25,14 +25,47 @@ public protocol Middleware {
     func failure(action: A, error: Error)
 }
 
-public struct AnyMiddleware {
-    private let middleware: Any
-    public init<W: Middleware>(_ middleware: W) {
-        self.middleware = middleware
+public struct AnyMiddleware: Middleware {
+    public typealias A = AnyAction
+    private let preClosure: (AnyAction) throws -> Any
+    private let postClosure: (AnyAction) throws -> Void
+    private let failureClosure: (AnyAction, Error) -> Void
+
+    public init<M: Middleware>(_ source: M) {
+        self.preClosure = {
+            if let action = $0 as? M.A {
+                return try source.pre(action: action)
+            }
+            return Rewrite<M.A>.none
+        }
+
+        self.postClosure = {
+            if let action = $0 as? M.A {
+                try source.post(action: action)
+            }
+        }
+
+        self.failureClosure = {
+            if let action = $0 as? M.A {
+                source.failure(action: action, error: $1)
+            }
+        }
+    }
+
+    public func pre(action: A) throws -> Rewrite<A> {
+        try self.preClosure(action) as? Rewrite<A> ?? .none
+    }
+
+    public func post(action: A) throws {
+        try self.postClosure(action)
+    }
+
+    public func failure(action: A, error: Error) {
+        self.failureClosure(action, error)
     }
 }
 
-extension Middleware {
+public extension Middleware {
     func pre(action: A) -> Rewrite<A> {
         .none
     }
@@ -60,9 +93,9 @@ public enum Rewrite<A: Action> {
 }
 
 public struct AnyWorker {
-    private let worker: Any
-    public init<W: Worker>(_ worker: W) {
-        self.worker = worker
+    fileprivate let source: Any
+    public init<W: Worker>(_ source: W) {
+        self.source = source
     }
 }
 
@@ -181,10 +214,25 @@ public class Dispatcher {
 
 private extension Dispatcher {
     func _fire<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
-        return Empty(completeImmediately: true,
-                     outputType: Void.self,
-                     failureType: Error.self)
-            .eraseToAnyPublisher()
+        do {
+            for middleware in self.middlewares {
+                let rewrite = try middleware.pre(action: AnyAction(action))
+                
+                switch rewrite {
+                case let .redirect(action):
+                    break
+                case let .defer(action, options):
+                    break
+                case .none:
+                    break
+                }
+            }
+        }
+        catch {
+            return Fail(outputType: Void.self, failure: <#T##_#>)
+        }
+
+        
     }
 
     func _fire<A: Action>(_ action: ActionFlow<A>) -> AnyPublisher<Void, Error> {
