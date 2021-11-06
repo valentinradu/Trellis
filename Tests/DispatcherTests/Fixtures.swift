@@ -5,8 +5,8 @@
 //  Created by Valentin Radu on 02/11/2021.
 //
 
-@testable import Dispatcher
 import XCTest
+@testable import Dispatcher
 
 class State {}
 
@@ -132,8 +132,7 @@ class TestMiddleware: Middleware {
             if authState == .unauthenticated {
                 return .defer(until: .login,
                               options: .init(lookBehind: true))
-            }
-            else {
+            } else {
                 return .defer(until: .login)
             }
         }
