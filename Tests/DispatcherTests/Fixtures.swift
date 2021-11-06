@@ -5,8 +5,8 @@
 //  Created by Valentin Radu on 02/11/2021.
 //
 
-import XCTest
 @testable import Dispatcher
+import XCTest
 
 class State {}
 
