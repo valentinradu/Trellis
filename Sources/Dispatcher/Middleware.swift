@@ -7,6 +7,9 @@
 
 import Combine
 
+/**
+ - remark: When using multiple middlewares, only the first one `.redirect`ing or `.defer`ing an action is considered. The rest are never called. Since middleware execution order is not guaranteed, it's best if you only redirect or defer one kind of action per middleware.
+ */
 public protocol Middleware {
     associatedtype A: Action
     func pre(action: A) throws -> Rewrite<A>

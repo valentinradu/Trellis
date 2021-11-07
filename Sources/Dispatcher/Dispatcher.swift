@@ -7,43 +7,73 @@
 
 import Combine
 
+/// The name of each store used by the dispatcher
 public enum ActionStoreName {
-    case queue
-    case history
+    /// The name of the store holding all the operations that await on another specific operation to fire
+    case shelf
+    /// The name of the store holding all the operations that fired since the dispatcher's initialization
+    case ledger
 }
 
+/**
+ The dispatcher propagates actions to each worker.
+ Its main jobs are:
+    - register workers
+    - fire actions
+    - handle action redirection and deferral
+    - purge the history (`.ledger`) and deferred action queue (`.shelf`)
+
+ - note: All the async `fire` operations have `Combine`, `async/await` and legacy callback closures support.
+ */
 public class Dispatcher {
     public typealias Completion = (Result<Void, Error>) -> Void
-    private var workers: [AnyWorker] = []
-    private var middlewares: [AnyMiddleware] = []
-    private var cancellables: Set<AnyCancellable> = []
-    private var history: [AnyAction] = []
-    private var deps: [AnyAction.Name: [AnyAction]] = [:]
+    private var _workers: [AnyWorker] = []
+    private var _middlewares: [AnyMiddleware] = []
+    private var _cancellables: Set<AnyCancellable> = []
+    private var _ledger: [AnyAction] = []
+    private var _shelf: [AnyAction.Name: [AnyAction]] = [:]
 
+    /**
+     Registers a new middleware.
+     - parameter middleware: The middleware instance to register
+     - seealso: Middleware
+     */
     public func register<M: Middleware>(middleware: M) {
-        middlewares.append(AnyMiddleware(middleware))
+        _middlewares.append(AnyMiddleware(middleware))
     }
 
+    /**
+     Registers a new worker
+     - parameter worker: The worker instance to register
+     - seealso: Worker
+     */
     public func register<W: Worker>(worker: W) {
-        workers.append(AnyWorker(worker))
+        _workers.append(AnyWorker(worker))
     }
 
+    /**
+     The dispatcher is mostly stateless and it can be used in any context without reinitialization. However, it does store the history (`.ledger`) and the actions that are waiting on other actions to fire (`.shelf`). `purge(from:)` clears any of these specific stores for cases when this is required (e.g. logging out an user, resetting your state, etc ).
+        - parameter from: The name of the store that will be cleared (`.shelf` or `.ledger`)
+     */
     public func purge(from: ActionStoreName) {
         switch from {
-        case .history:
-            history = []
-        case .queue:
-            deps = [:]
+        case .ledger:
+            _ledger = []
+        case .shelf:
+            _shelf = [:]
         }
     }
 
+    /**
+     Purges all actions from all the stores. This is similar to reinitializing the dispatcher, but without having to register the workers again.
+     */
     public func purge() {
-        deps = [:]
-        history = []
+        _shelf = [:]
+        _ledger = []
     }
-
-    public func fire<A: Action>(_ action: A,
-                                completion: Completion?)
+    
+    func fire<A: Action>(_ action: A,
+                         completion: Completion?)
     {
         _fire(action)
             .sink(
@@ -59,7 +89,7 @@ public class Dispatcher {
                     completion?(.success(result))
                 }
             )
-            .store(in: &cancellables)
+            .store(in: &_cancellables)
     }
 
     public func fire<A: Action>(_ action: ActionFlow<A>,
@@ -79,7 +109,7 @@ public class Dispatcher {
                     completion?(.success(result))
                 }
             )
-            .store(in: &cancellables)
+            .store(in: &_cancellables)
     }
 
     public func fire<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
@@ -131,25 +161,25 @@ private extension Dispatcher {
     func _fire<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
         var action = AnyAction(action)
         do {
-            for middleware in middlewares {
+            for middleware in _middlewares {
                 let rewrite = try middleware.pre(action: action)
 
                 switch rewrite {
                 case let .redirect(newAction):
                     action = newAction
                 case let .defer(name, options):
-                    if options.lookBehind, history.map(\.name).contains(name) {
+                    if options.lookBehind, _ledger.map(\.name).contains(name) {
                         continue
                     } else {
-                        if deps[name] == nil {
-                            deps[name] = []
+                        if _shelf[name] == nil {
+                            _shelf[name] = []
                         }
 
                         if options.enqueueSimilarEvents {
-                            deps[name]!.append(action)
+                            _shelf[name]!.append(action)
                         } else {
-                            if !deps[name]!.contains(where: { $0.name == action.name }) {
-                                deps[name]!.append(action)
+                            if !_shelf[name]!.contains(where: { $0.name == action.name }) {
+                                _shelf[name]!.append(action)
                             }
                         }
                     }
@@ -162,7 +192,7 @@ private extension Dispatcher {
 
             var pubs: [AnyPublisher<Void, Error>] = []
 
-            for worker in workers {
+            for worker in _workers {
                 pubs.append(worker.execute(action))
             }
 
@@ -171,13 +201,13 @@ private extension Dispatcher {
                 .map { _ in () }
                 .flatMap {
                     Future<[AnyAction]?, Error> { promise in
-                        self.history.append(action)
+                        self._ledger.append(action)
 
-                        for middleware in self.middlewares {
+                        for middleware in self._middlewares {
                             middleware.post(action: action)
                         }
 
-                        if let deps = self.deps.removeValue(forKey: action.name) {
+                        if let deps = self._shelf.removeValue(forKey: action.name) {
                             promise(.success(deps))
                         } else {
                             promise(.success(nil))

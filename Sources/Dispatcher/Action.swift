@@ -15,7 +15,7 @@ public protocol Action {
 public struct AnyAction: Action {
     public typealias Name = AnyHashable
 
-    private let action: Any
+    internal let action: Any
     public let name: Name
     public init<A: Action>(_ action: A) {
         self.action = action
