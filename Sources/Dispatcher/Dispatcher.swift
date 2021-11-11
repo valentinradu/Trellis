@@ -71,7 +71,11 @@ public class Dispatcher {
         _shelf = [:]
         _ledger = []
     }
-    
+
+    /**
+     Fires an action and calls back a completion handler when the action has been processed by all the workers.
+        - parameter action: The action
+     */
     func fire<A: Action>(_ action: A,
                          completion: Completion?)
     {
@@ -92,10 +96,14 @@ public class Dispatcher {
             .store(in: &_cancellables)
     }
 
-    public func fire<A: Action>(_ action: ActionFlow<A>,
+    /**
+     Fires an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the workers. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed anymore.
+        - parameter flow: The action flow
+     */
+    public func fire<A: Action>(_ flow: ActionFlow<A>,
                                 completion: Completion?)
     {
-        _fire(action)
+        _fire(flow)
             .sink(
                 receiveCompletion: { result in
                     switch result {
@@ -112,22 +120,43 @@ public class Dispatcher {
             .store(in: &_cancellables)
     }
 
+    /**
+     Fires an action and returns a publisher that completes (or errors out) when all the workers finished processing the action.
+        - parameter action: The action
+     */
     public func fire<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
         _fire(action)
     }
 
-    public func fire<A: Action>(_ action: ActionFlow<A>) -> AnyPublisher<Void, Error> {
-        _fire(action)
+    /**
+      Fires an action flow (multiple actions chained one after the other) and returns a publisher that completes (or errors out) when all the workers finished processing the actions. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed anymore.
+         - parameter flow: The action flow
+     */
+    public func fire<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
+        _fire(flow)
     }
 
+    /**
+     Similar to the other `fire(action:)` methods, except completion is ignored.
+         - parameter action: The action
+         - seealso: fire(action:)
+     */
     public func fireAndForget<A: Action>(_ action: A) {
         fire(action, completion: nil)
     }
 
-    public func fireAndForget<A: Action>(_ action: ActionFlow<A>) {
-        fire(action, completion: nil)
+    /**
+     Similar to the other `fire(flow:)` methods, except completion is ignored.
+        - parameter flow: The action flow
+        - seealso: fire(flow:)
+     */
+    public func fireAndForget<A: Action>(_ flow: ActionFlow<A>) {
+        fire(flow, completion: nil)
     }
 
+    /**
+     Fires an action using `async/await`
+     */
     @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
     public func fire<A: Action>(_ action: A) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
@@ -142,10 +171,13 @@ public class Dispatcher {
         }
     }
 
+    /**
+     Fires an action flow using `async/await`
+     */
     @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
-    public func fire<A: Action>(_ action: ActionFlow<A>) async throws {
+    public func fire<A: Action>(_ flow: ActionFlow<A>) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
-            fire(action) {
+            fire(flow) {
                 switch $0 {
                 case .success:
                     continuation.resume(returning: ())
@@ -167,7 +199,7 @@ private extension Dispatcher {
                 switch rewrite {
                 case let .redirect(newAction):
                     action = newAction
-                case let .defer(name, options):
+                case let .defer(queue):
                     if options.lookBehind, _ledger.map(\.name).contains(name) {
                         continue
                     } else {

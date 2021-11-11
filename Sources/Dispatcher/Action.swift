@@ -7,66 +7,81 @@
 
 import Foundation
 
+/**
+ Actions are atomic units that drive all the other actors: the dispatcher fires actions and the workers execute their tasks when receiving their associated actions. Middleware is called before and after each action is executed by workers and can be used to redirect, defer or bulk-handling failures.
+ Any class, struct or enum can implement the `Action` protocol as long as it has a unique name used to identify it. However, most of the time we define actions in an enum:
+
+ ```
+ enum GatekeeperAction: Action, Equatable {
+     case login(email: String, password: String)
+     case logout
+     case resetPassword
+
+     enum Name: Equatable {
+         case login
+         case logout
+         case resetPassword
+     }
+
+     var name: Name {
+         switch self {
+         case .login: return .login
+         case .logout: return .logout
+         case .resetPassword: return .resetPassword
+         }
+     }
+ }
+ ```
+ */
 public protocol Action {
     associatedtype Name: Hashable
+    
+    /// The action name
     var name: Name { get }
 }
 
+/**
+ Type-erasure for `Action`s
+ */
 public struct AnyAction: Action {
     public typealias Name = AnyHashable
 
-    internal let action: Any
+    public let wrappedValue: Any
     public let name: Name
     public init<A: Action>(_ action: A) {
-        self.action = action
-        name = AnyHashable(action.name)
+        if let anyAction = action as? AnyAction {
+            self = anyAction
+        }
+        else {
+            self.wrappedValue = action
+            name = AnyHashable(action.name)
+        }
     }
 }
 
 public extension Action {
+    /// Used to chain multiple actions one after the other
     func then(other: Self) -> ActionFlow<Self> {
         ActionFlow(actions: [self, other])
     }
-
-    func and(other: Self.Name) -> ActionGroup<Self> {
-        ActionGroup(name, other)
-    }
-
-    func `in`(group: ActionGroup<Self>) -> Bool {
-        group.names.contains(name)
-    }
 }
 
+/**
+ A chain of actions sent to workers one after the other
+ */
 public struct ActionFlow<A: Action> {
-    internal let actions: [A]
+    /// All the actions in this flow in the execution order.
+    public let actions: [A]
+
+    /// Concatenate this chain with another, keeping the execution order.
     public func then(_ other: Self) -> Self {
         ActionFlow(actions: actions + other.actions)
     }
 
+    /// Execute a new action after this chain of actions.
     public func then(_ action: A) -> Self {
         ActionFlow(actions: actions + [action])
     }
 }
 
-public struct ActionGroup<A: Action> {
-    fileprivate let names: [A.Name]
-
-    public init(_ names: A.Name...) {
-        self.names = names
-    }
-
-    public init(_ names: [A.Name]) {
-        self.names = names
-    }
-
-    public func and(_ other: Self) -> Self {
-        ActionGroup(names + other.names)
-    }
-
-    public func and(_ name: A.Name) -> Self {
-        ActionGroup(names + [name])
-    }
-}
-
-extension ActionGroup: Codable where A.Name: Codable {}
-extension ActionFlow: Codable where A: Codable {}
+public struct ActionQueue {}

@@ -75,24 +75,6 @@ enum TestError: Error, Equatable {
     case accessDenied
 }
 
-extension ActionGroup {
-    static var accountGroup: ActionGroup<TestAction> {
-        .init(.fetchAccount, .patchEmail, .registerNewDevice)
-    }
-
-    static var playerGroup: ActionGroup<TestAction> {
-        .init(.load, .play, .stop, .skip)
-    }
-
-    static var authenticatedGroup: ActionGroup<TestAction> {
-        .accountGroup.and(.playerGroup)
-    }
-
-    static var adminGroup: ActionGroup<TestAction> {
-        .init(.closeAccount)
-    }
-}
-
 @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
 class TestService: Worker {
     var actions: [(Date, TestAction)] = []
@@ -115,12 +97,27 @@ class TestMiddleware: Middleware {
     var preActions: [(Date, TestAction)] = []
     var postActions: [(Date, TestAction)] = []
     var failures: [(Date, TestAction, Error)] = []
+    var accountActionsNames: Set<TestAction.Name> {
+        [.fetchAccount, .patchEmail, .registerNewDevice]
+    }
+
+    var playerActionsNames: Set<TestAction.Name> {
+        [.load, .play, .stop, .skip]
+    }
+
+    var authenticatedActionsNames: Set<TestAction.Name> {
+        accountActionsNames.union(playerActionsNames)
+    }
+
+    var adminActionsNames: Set<TestAction.Name> {
+        [.closeAccount]
+    }
 
     func pre(action: TestAction) throws -> Rewrite<TestAction> {
         preActions.append((Date.now, action))
         // If account is unauthenticated but the action requires authentication, look behind, if login action was already fired, fire your action, if not, wait until it is and then fire your action
         if authState == .unauthenticated,
-           action.in(group: .authenticatedGroup)
+           authenticatedActionsNames.contains(action.name)
         {
             return .defer(until: .login,
                           options: .init(lookBehind: true))
@@ -139,12 +136,12 @@ class TestMiddleware: Middleware {
 
         // If the account is not authenticated but we try to fire an action that require authentication, navigate the user to the login page (we'd normally also clear the  state here)
         if authState == .unauthenticated,
-           action.in(group: .authenticatedGroup)
+           authenticatedActionsNames.contains(action.name)
         {
             return .redirect(to: .nav(path: "/login"))
         }
 
-        if authState != .admin, action.in(group: .adminGroup) {
+        if authState != .admin, adminActionsNames.contains(action.name) {
             throw TestError.accessDenied
         }
 
