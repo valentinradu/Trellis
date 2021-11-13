@@ -34,6 +34,9 @@ enum TestAction: Action, Equatable {
     // UI
     case alert(title: String, description: String)
     case nav(path: String)
+    
+    // Utils
+    case null
 
     // This section is required because Swift doesn't synthetize the **name** of the enum and we can't use the enum itself since some have associated values (e.g. `.login(email: String, password: String)`
     enum Name: Equatable {
@@ -50,6 +53,7 @@ enum TestAction: Action, Equatable {
         case closeAccount
         case alert
         case nav
+        case null
     }
 
     var name: Name {
@@ -67,6 +71,7 @@ enum TestAction: Action, Equatable {
         case .closeAccount: return .closeAccount
         case .alert: return .alert
         case .nav: return .nav
+        case .null: return .null
         }
     }
 }
@@ -87,12 +92,20 @@ class TestService: Worker {
 
 @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
 class TestMiddleware: Middleware {
+    unowned let dispatcher: Dispatcher
+
+    init(dispatcher: Dispatcher) {
+        self.dispatcher = dispatcher
+    }
+
     enum AuthState {
         case unauthenticated
         case authenticated
         case admin
     }
 
+    var waitForAuthentication: ActionFlow<TestAction> = .init()
+    var waitForAccountFetching: ActionFlow<TestAction> = .init()
     var authState: AuthState = .unauthenticated
     var preActions: [(Date, TestAction)] = []
     var postActions: [(Date, TestAction)] = []
@@ -119,18 +132,26 @@ class TestMiddleware: Middleware {
         if authState == .unauthenticated,
            authenticatedActionsNames.contains(action.name)
         {
-            return .defer(until: .login,
-                          options: .init(lookBehind: true))
+            waitForAuthentication = waitForAuthentication.then(action)
+            return .redirect(to: .null)
         }
 
         // If we have to register the device id, check if the account is unauthenticated, if so, look behind in history and fire `.registerNewDevice` either right away, if `.login` was already fired, or right after `.login` fires.
         // Alternatively, if the account is already authenticated, wait for `.fetchAccount` and fire right after it
         if action.name == .registerNewDevice {
             if authState == .unauthenticated {
-                return .defer(until: .login,
-                              options: .init(lookBehind: true))
+                waitForAuthentication = waitForAuthentication.then(action)
+                return .redirect(to: .null)
             } else {
-                return .defer(until: .login)
+                if !dispatcher.ledger.actions
+                    .map(\.name)
+                    .contains(TestAction.fetchAccount.name)
+                {
+                    waitForAccountFetching = waitForAccountFetching.then(action)
+                    return .redirect(to: .null)
+                } else {
+                    return .none
+                }
             }
         }
 

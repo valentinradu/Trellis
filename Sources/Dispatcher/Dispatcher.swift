@@ -7,31 +7,22 @@
 
 import Combine
 
-/// The name of each store used by the dispatcher
-public enum ActionStoreName {
-    /// The name of the store holding all the operations that await on another specific operation to fire
-    case shelf
-    /// The name of the store holding all the operations that fired since the dispatcher's initialization
-    case ledger
-}
-
 /**
  The dispatcher propagates actions to each worker.
  Its main jobs are:
     - register workers
     - fire actions
     - handle action redirection and deferral
-    - purge the history (`.ledger`) and deferred action queue (`.shelf`)
 
  - note: All the async `fire` operations have `Combine`, `async/await` and legacy callback closures support.
  */
 public class Dispatcher {
     public typealias Completion = (Result<Void, Error>) -> Void
+    public private(set) var ledger: ActionFlow<AnyAction> = .init(actions: [])
+
     private var _workers: [AnyWorker] = []
     private var _middlewares: [AnyMiddleware] = []
     private var _cancellables: Set<AnyCancellable> = []
-    private var _ledger: [AnyAction] = []
-    private var _shelf: [AnyAction.Name: [AnyAction]] = [:]
 
     /**
      Registers a new middleware.
@@ -52,24 +43,22 @@ public class Dispatcher {
     }
 
     /**
-     The dispatcher is mostly stateless and it can be used in any context without reinitialization. However, it does store the history (`.ledger`) and the actions that are waiting on other actions to fire (`.shelf`). `purge(from:)` clears any of these specific stores for cases when this is required (e.g. logging out an user, resetting your state, etc ).
-        - parameter from: The name of the store that will be cleared (`.shelf` or `.ledger`)
+     Resets the dispatcher to its initial state, stopping any current action processing and optionally unregistering the workers, middleware and clearing the history.
      */
-    public func purge(from: ActionStoreName) {
-        switch from {
-        case .ledger:
-            _ledger = []
-        case .shelf:
-            _shelf = [:]
+    public func reset(ledger: Bool = false,
+                      workers: Bool = false,
+                      middlewares: Bool = false)
+    {
+        _cancellables = []
+        if ledger {
+            self.ledger = .init(actions: [])
         }
-    }
-
-    /**
-     Purges all actions from all the stores. This is similar to reinitializing the dispatcher, but without having to register the workers again.
-     */
-    public func purge() {
-        _shelf = [:]
-        _ledger = []
+        if workers {
+            _workers = []
+        }
+        if middlewares {
+            _middlewares = []
+        }
     }
 
     /**
@@ -199,22 +188,6 @@ private extension Dispatcher {
                 switch rewrite {
                 case let .redirect(newAction):
                     action = newAction
-                case let .defer(queue):
-                    if options.lookBehind, _ledger.map(\.name).contains(name) {
-                        continue
-                    } else {
-                        if _shelf[name] == nil {
-                            _shelf[name] = []
-                        }
-
-                        if options.enqueueSimilarEvents {
-                            _shelf[name]!.append(action)
-                        } else {
-                            if !_shelf[name]!.contains(where: { $0.name == action.name }) {
-                                _shelf[name]!.append(action)
-                            }
-                        }
-                    }
                 case .none:
                     continue
                 }
@@ -232,38 +205,16 @@ private extension Dispatcher {
                 .collect()
                 .map { _ in () }
                 .flatMap {
-                    Future<[AnyAction]?, Error> { promise in
-                        self._ledger.append(action)
+                    Future<Void, Error> { promise in
+                        self.ledger = self.ledger.then(action)
 
                         for middleware in self._middlewares {
                             middleware.post(action: action)
                         }
 
-                        if let deps = self._shelf.removeValue(forKey: action.name) {
-                            promise(.success(deps))
-                        } else {
-                            promise(.success(nil))
-                        }
+                        promise(.success(()))
                     }
                     .eraseToAnyPublisher()
-                }
-                .flatMap { deps -> AnyPublisher<Void, Error> in
-                    if let deps = deps {
-                        var pubs: [AnyPublisher<Void, Error>] = []
-
-                        for dep in deps {
-                            pubs.append(self._fire(dep))
-                        }
-
-                        return Publishers.MergeMany(pubs)
-                            .collect()
-                            .map { _ in () }
-                            .eraseToAnyPublisher()
-                    } else {
-                        return Just(())
-                            .setFailureType(to: Error.self)
-                            .eraseToAnyPublisher()
-                    }
                 }
                 .share()
                 .eraseToAnyPublisher()

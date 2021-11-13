@@ -17,7 +17,7 @@ final class DispatcherTests: XCTestCase {
     override func setUp() {
         _dispatcher = Dispatcher()
         _service = TestService()
-        _middleware = TestMiddleware()
+        _middleware = TestMiddleware(dispatcher: _dispatcher)
 
         _dispatcher.register(worker: _service)
         _dispatcher.register(middleware: _middleware)
@@ -35,7 +35,7 @@ final class DispatcherTests: XCTestCase {
         _middleware.authState = .unauthenticated
         try await _dispatcher.fire(TestAction.registerNewDevice(id: ""))
         _middleware.authState = .authenticated
-        _dispatcher.purge(from: .shelf)
+        _dispatcher.reset(ledger: true)
         try await _dispatcher.fire(
             TestAction
                 .login(email: "", password: "")
@@ -55,7 +55,7 @@ final class DispatcherTests: XCTestCase {
                 .then(other: .fetchAccount)
         )
 
-        _dispatcher.purge(from: .ledger)
+        _dispatcher.reset(ledger: true)
         try await _dispatcher.fire(TestAction.registerNewDevice(id: ""))
 
         // Even if all dependencies should be solved, `.registerNewDevice` won't fire since we purged the ledger and would require an additional `.fetchAccount` to do so

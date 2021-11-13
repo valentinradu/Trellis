@@ -19,7 +19,7 @@ final class MiddlewareTests: XCTestCase {
 
         // Normally, you'd inject both the state and a week reference to the dispatcher into services or middlewares (e.g. `playerService = PlayerService(state: state, dispatcher: dispatcher)`). In case you'd like to fire other actions as side effects to the ones that the service handles.
         _service = TestService()
-        _middleware = TestMiddleware()
+        _middleware = TestMiddleware(dispatcher: _dispatcher)
 
         _dispatcher.register(worker: _service)
         _dispatcher.register(middleware: _middleware)

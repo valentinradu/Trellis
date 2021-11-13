@@ -90,6 +90,4 @@ public enum Rewrite<A: Action> {
     case none
     /// Replace the current action with another action before it reaches any worker
     case redirect(to: A)
-    /// Postpone the action. The queue is used to allow finer control when you fire the actions later (e.g. some actions might await for the user to log in, while others to visit a certain part of the app, in which case we'd have two different queues). Use `fire(queue:)` to flush all the actions, in the same order they were added, when ready.
-    case `defer`(to: ActionQueue)
 }

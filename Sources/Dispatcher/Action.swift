@@ -71,17 +71,23 @@ public extension Action {
  */
 public struct ActionFlow<A: Action> {
     /// All the actions in this flow in the execution order.
-    public let actions: [A]
+    let actions: [A]
+    
+    init(actions: [A]) {
+        self.actions = actions
+    }
+    
+    public init() {
+        actions = []
+    }
 
     /// Concatenate this chain with another, keeping the execution order.
-    public func then(_ other: Self) -> Self {
+    public func then(_ other: ActionFlow) -> ActionFlow {
         ActionFlow(actions: actions + other.actions)
     }
 
     /// Execute a new action after this chain of actions.
-    public func then(_ action: A) -> Self {
+    public func then(_ action: A) -> ActionFlow {
         ActionFlow(actions: actions + [action])
     }
 }
-
-public struct ActionQueue {}
