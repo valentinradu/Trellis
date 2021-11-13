@@ -8,7 +8,7 @@
 import Foundation
 
 /**
- Actions are atomic units that drive all the other actors: the dispatcher fires actions and the workers execute their tasks when receiving their associated actions. Middleware is called before and after each action is executed by workers and can be used to redirect, defer or bulk-handling failures.
+ Actions are atomic units that drive all the other actors: the dispatcher fires them and the workers execute their action-associated tasks as a result. Middleware is called before and after each action is processed and can be used to redirect an action to another or bulk-handle failures.
  Any class, struct or enum can implement the `Action` protocol as long as it has a unique name used to identify it. However, most of the time we define actions in an enum:
 
  ```

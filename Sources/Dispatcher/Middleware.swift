@@ -12,20 +12,20 @@ import Combine
  1) Blocking, postponing or redirecting an action *before* sending it to the workers
  2) Hadling all errors in one place, no matter their kind, as long as they originate from an worker
  3) Take additional actions, like, logging or asserting, after all the workers finished processing an action
- - remark: When using multiple middlewares, only the first one `.redirect`ing or `.defer`ing an action is considered. The rest are never called. Since middleware execution order is not guaranteed, it's best if you only redirect or defer one kind of action per middleware.
+ - remark: When using multiple middlewares, only the first one `.redirect`ing an action is considered. The rest are never called. Since middleware execution order is not guaranteed, it's best if you only redirect or defer one kind of action per middleware.
  */
 public protocol Middleware {
     associatedtype A: Action
     /**
-     Called by the dispatcher before sending the action to all workers. It can be used to terminate the action, redirect it to other action or postpone it until manually calling `fire(queue:)`.
+     Called before sending the action to all workers. It can be used to terminate the action, redirect it to other action or postpone it.
      */
     func pre(action: A) throws -> Rewrite<A>
     /**
-     Called by the dispatcher after all the workers finished processing the action.
+     Called after all the workers finished processing the action.
      */
     func post(action: A)
     /**
-     Called by the dispatcher when a worker failed to process the action.
+     Called when a worker failed to process the action.
      */
     func failure(action: A, error: Error)
 }
@@ -83,7 +83,8 @@ public extension Middleware {
 }
 
 /**
- Action rewrite type
+ Action rewrite
+ - seealso: Action
  */
 public enum Rewrite<A: Action> {
     /// No action taken, the default behaviour of any middleware

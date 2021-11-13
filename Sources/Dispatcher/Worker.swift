@@ -8,7 +8,7 @@
 import Combine
 
 /**
- Workers are specialized in executing related actions. For example, authentication, identity, persistence or any other app-specific actions that go along together. The worker usually can access and modify the state.
+ Workers are specialized in processing task when receiving specific actions. For example, you could have a worker handling authentication, other handling identity, other persistence, and so on. The worker usually can access and modify the state and has a weak (`unowned`) reference to the dispatcher.
  */
 public protocol Worker {
     associatedtype A: Action

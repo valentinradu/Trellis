@@ -8,17 +8,17 @@
 import Combine
 
 /**
- The dispatcher propagates actions to each worker.
+ The dispatcher propagates actions to workers.
  Its main jobs are:
-    - register workers
-    - fire actions
-    - handle action redirection and deferral
+    - to register workers
+    - to fire actions
+    - to handle redirection
 
- - note: All the async `fire` operations have `Combine`, `async/await` and legacy callback closures support.
+ - note: All the async `fire` operations also have `Combine`, `async/await` and legacy callback closures support.
  */
 public class Dispatcher {
     public typealias Completion = (Result<Void, Error>) -> Void
-    public private(set) var ledger: ActionFlow<AnyAction> = .init(actions: [])
+    public private(set) var history: ActionFlow<AnyAction> = .init(actions: [])
 
     private var _workers: [AnyWorker] = []
     private var _middlewares: [AnyMiddleware] = []
@@ -45,13 +45,13 @@ public class Dispatcher {
     /**
      Resets the dispatcher to its initial state, stopping any current action processing and optionally unregistering the workers, middleware and clearing the history.
      */
-    public func reset(ledger: Bool = false,
+    public func reset(history: Bool = false,
                       workers: Bool = false,
                       middlewares: Bool = false)
     {
         _cancellables = []
-        if ledger {
-            self.ledger = .init(actions: [])
+        if history {
+            self.history = .init(actions: [])
         }
         if workers {
             _workers = []
@@ -206,7 +206,7 @@ private extension Dispatcher {
                 .map { _ in () }
                 .flatMap {
                     Future<Void, Error> { promise in
-                        self.ledger = self.ledger.then(action)
+                        self.history = self.history.then(action)
 
                         for middleware in self._middlewares {
                             middleware.post(action: action)

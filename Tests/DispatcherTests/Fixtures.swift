@@ -143,7 +143,7 @@ class TestMiddleware: Middleware {
                 waitForAuthentication = waitForAuthentication.then(action)
                 return .redirect(to: .null)
             } else {
-                if !dispatcher.ledger.actions
+                if !dispatcher.history.actions
                     .map(\.name)
                     .contains(TestAction.fetchAccount.name)
                 {

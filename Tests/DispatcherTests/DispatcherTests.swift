@@ -35,7 +35,7 @@ final class DispatcherTests: XCTestCase {
         _middleware.authState = .unauthenticated
         try await _dispatcher.fire(TestAction.registerNewDevice(id: ""))
         _middleware.authState = .authenticated
-        _dispatcher.reset(ledger: true)
+        _dispatcher.reset(history: true)
         try await _dispatcher.fire(
             TestAction
                 .login(email: "", password: "")
@@ -55,10 +55,10 @@ final class DispatcherTests: XCTestCase {
                 .then(other: .fetchAccount)
         )
 
-        _dispatcher.reset(ledger: true)
+        _dispatcher.reset(history: true)
         try await _dispatcher.fire(TestAction.registerNewDevice(id: ""))
 
-        // Even if all dependencies should be solved, `.registerNewDevice` won't fire since we purged the ledger and would require an additional `.fetchAccount` to do so
+        // Even if all dependencies should be solved, `.registerNewDevice` won't fire since we purged the history and would require an additional `.fetchAccount` to do so
         XCTAssertEqual(_service.actions.map(\.1.name),
                        [.login, .fetchAccount])
     }
