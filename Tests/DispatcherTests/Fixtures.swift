@@ -11,7 +11,7 @@ import XCTest
 class State {}
 
 /// To make things easier to follow, the tests are working with a set of toy actions that emulate an app that has authentication, both as a regular user and admin, a simple audio player available only to authenticated users and a set of admin-specific actions.
-enum TestAction: Action, Equatable {
+enum TestAction: Action, Hashable {
     // Authentication
     case login(email: String, password: String)
     case logout
@@ -34,12 +34,12 @@ enum TestAction: Action, Equatable {
     // UI
     case alert(title: String, description: String)
     case nav(path: String)
-    
+
     // Utils
-    case null
+    case postpone(TestAction.Name, until: TestAction.Name)
 
     // This section is required because Swift doesn't synthetize the **name** of the enum and we can't use the enum itself since some have associated values (e.g. `.login(email: String, password: String)`
-    enum Name: Equatable {
+    indirect enum Name: Hashable {
         case login
         case logout
         case resetPassword
@@ -53,7 +53,7 @@ enum TestAction: Action, Equatable {
         case closeAccount
         case alert
         case nav
-        case null
+        case postpone(Name, until: Name)
     }
 
     var name: Name {
@@ -71,7 +71,7 @@ enum TestAction: Action, Equatable {
         case .closeAccount: return .closeAccount
         case .alert: return .alert
         case .nav: return .nav
-        case .null: return .null
+        case let .postpone(name, until): return .postpone(name, until: until)
         }
     }
 }
@@ -133,7 +133,8 @@ class TestMiddleware: Middleware {
            authenticatedActionsNames.contains(action.name)
         {
             waitForAuthentication = waitForAuthentication.then(action)
-            return .redirect(to: .null)
+            return .redirect(to: .postpone(action.name,
+                                           until: .login))
         }
 
         // If we have to register the device id, check if the account is unauthenticated, if so, look behind in history and fire `.registerNewDevice` either right away, if `.login` was already fired, or right after `.login` fires.
@@ -141,14 +142,16 @@ class TestMiddleware: Middleware {
         if action.name == .registerNewDevice {
             if authState == .unauthenticated {
                 waitForAuthentication = waitForAuthentication.then(action)
-                return .redirect(to: .null)
+                return .redirect(to: .postpone(action.name,
+                                               until: .login))
             } else {
                 if !dispatcher.history.actions
                     .map(\.name)
                     .contains(TestAction.fetchAccount.name)
                 {
                     waitForAccountFetching = waitForAccountFetching.then(action)
-                    return .redirect(to: .null)
+                    return .redirect(to: .postpone(action.name,
+                                                   until: .fetchAccount))
                 } else {
                     return .none
                 }

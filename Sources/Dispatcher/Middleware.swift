@@ -35,16 +35,22 @@ public protocol Middleware {
  */
 public struct AnyMiddleware: Middleware {
     public typealias A = AnyAction
-    private let preClosure: (AnyAction) throws -> Any
+    private let preClosure: (AnyAction) throws -> Rewrite<AnyAction>
     private let postClosure: (AnyAction) -> Void
     private let failureClosure: (AnyAction, Error) -> Void
 
     public init<M: Middleware>(_ source: M) {
         preClosure = {
             if let action = $0.wrappedValue as? M.A {
-                return try source.pre(action: action)
+                let rewrite = try source.pre(action: action)
+                switch rewrite {
+                case let .redirect(to):
+                    return .redirect(to: AnyAction(to))
+                case .none:
+                    return .none
+                }
             }
-            return Rewrite<M.A>.none
+            return Rewrite<AnyAction>.none
         }
 
         postClosure = {
@@ -61,7 +67,7 @@ public struct AnyMiddleware: Middleware {
     }
 
     public func pre(action: A) throws -> Rewrite<A> {
-        try preClosure(action) as? Rewrite<A> ?? .none
+        return try preClosure(action)
     }
 
     public func post(action: A) {

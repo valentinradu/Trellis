@@ -188,11 +188,10 @@ private extension Dispatcher {
                 switch rewrite {
                 case let .redirect(newAction):
                     action = newAction
+                    break
                 case .none:
                     continue
                 }
-
-                break
             }
 
             var pubs: [AnyPublisher<Void, Error>] = []

@@ -31,23 +31,7 @@ final class DispatcherTests: XCTestCase {
         XCTAssertEqual(otherService.actions.map(\.1), [.resetPassword])
     }
 
-    func testPurgeQueue() async throws {
-        _middleware.authState = .unauthenticated
-        try await _dispatcher.fire(TestAction.registerNewDevice(id: ""))
-        _middleware.authState = .authenticated
-        _dispatcher.reset(history: true)
-        try await _dispatcher.fire(
-            TestAction
-                .login(email: "", password: "")
-                .then(other: .fetchAccount)
-        )
-
-        // Since we purged the queue `.registerNewDevice` should not fire anymore, even if the triggering action (`.fetchAccount`) did
-        XCTAssertEqual(_service.actions.map(\.1.name),
-                       [.login, .fetchAccount])
-    }
-
-    func testPurgeLedger() async throws {
+    func testPurgeHistory() async throws {
         _middleware.authState = .authenticated
         try await _dispatcher.fire(
             TestAction
@@ -59,8 +43,14 @@ final class DispatcherTests: XCTestCase {
         try await _dispatcher.fire(TestAction.registerNewDevice(id: ""))
 
         // Even if all dependencies should be solved, `.registerNewDevice` won't fire since we purged the history and would require an additional `.fetchAccount` to do so
-        XCTAssertEqual(_service.actions.map(\.1.name),
-                       [.login, .fetchAccount])
+        XCTAssertEqual(
+            _service.actions.map(\.1.name),
+            [
+                .login,
+                .fetchAccount,
+                .postpone(.registerNewDevice, until: .fetchAccount)
+            ]
+        )
     }
 
     func testFireSuccess() async throws {

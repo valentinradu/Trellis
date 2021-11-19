@@ -71,7 +71,7 @@ final class MiddlewareTests: XCTestCase {
         _middleware.authState = .unauthenticated
         try await _dispatcher.fire(TestAction.play)
 
-        XCTAssertEqual(_service.actions.map(\.1), [.logout])
+        XCTAssertEqual(_service.actions.map(\.1), [.postpone(.play, until: .login)])
     }
 
     func testMiddlewareWaitForOthers() async throws {
@@ -79,18 +79,27 @@ final class MiddlewareTests: XCTestCase {
         try await _dispatcher.fire(TestAction.registerNewDevice(id: ""))
 
         // `.registerNewDevice` should not be called until authenticated
-        XCTAssertEqual(_service.actions.map(\.1), [])
+        XCTAssertEqual(_service.actions.map(\.1),
+                       [.postpone(.registerNewDevice, until: .login)])
 
         _middleware.authState = .authenticated
         try await _dispatcher.fire(TestAction.login(email: "", password: ""))
 
         // `.registerNewDevice` should only be called if `.fetchAccount` was already called, or, if not, right after it
-        XCTAssertEqual(_service.actions.map(\.1.name), [.login])
+        XCTAssertEqual(_service.actions.map(\.1.name),
+                       [.postpone(.registerNewDevice, until: .login), .login])
 
         try await _dispatcher.fire(TestAction.fetchAccount)
 
-        XCTAssertEqual(_service.actions.map(\.1.name),
-                       [.login, .fetchAccount, .registerNewDevice])
+        XCTAssertEqual(
+            _service.actions.map(\.1.name),
+            [
+                .postpone(.registerNewDevice, until: .login),
+                .login,
+                .fetchAccount,
+                .registerNewDevice
+            ]
+        )
         XCTAssertLessThan(_service.actions[0].0, _service.actions[1].0)
     }
 
