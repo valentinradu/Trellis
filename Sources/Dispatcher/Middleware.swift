@@ -45,7 +45,8 @@ public struct AnyMiddleware: Middleware {
                 let rewrite = try source.pre(action: action)
                 switch rewrite {
                 case let .redirect(to):
-                    return .redirect(to: AnyAction(to))
+                    let newFlow = ActionFlow(actions: to.actions.map { AnyAction($0) })
+                    return .redirect(to: newFlow)
                 case .none:
                     return .none
                 }
@@ -96,5 +97,5 @@ public enum Rewrite<A: Action> {
     /// No action taken, the default behaviour of any middleware
     case none
     /// Replace the current action with another action before it reaches any worker
-    case redirect(to: A)
+    case redirect(to: ActionFlow<A>)
 }

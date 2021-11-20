@@ -64,21 +64,33 @@ public extension Action {
     func then(other: Self) -> ActionFlow<Self> {
         ActionFlow(actions: [self, other])
     }
+    
+    func then(flow: ActionFlow<Self>) -> ActionFlow<Self> {
+        ActionFlow(actions: [self] + flow.actions)
+    }
 }
 
 /**
  A chain of actions sent to workers one after the other
  */
 public struct ActionFlow<A: Action> {
+    public static func single<B: Action>(action: B) -> ActionFlow<B> {
+        ActionFlow<B>(actions: [action])
+    }
+    
+    public static func empty<B: Action>(type: B.Type) -> ActionFlow<B> {
+        ActionFlow<B>(actions: [])
+    }
+    
+    public static func empty() -> ActionFlow<AnyAction> {
+        ActionFlow<AnyAction>(actions: [])
+    }
+    
     /// All the actions in this flow in the execution order.
-    let actions: [A]
+    public var actions: [A] = []
     
     init(actions: [A]) {
         self.actions = actions
-    }
-    
-    public init() {
-        actions = []
     }
 
     /// Concatenate this chain with another, keeping the execution order.

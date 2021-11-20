@@ -8,7 +8,7 @@
 @testable import Dispatcher
 import XCTest
 
-@available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+@available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class MiddlewareTests: XCTestCase {
     private var _dispatcher: Dispatcher!
     private var _service: TestService!
@@ -41,23 +41,22 @@ final class MiddlewareTests: XCTestCase {
     }
 
     func testMiddlewareFailure() async throws {
-        _middleware.authState = .admin
-        try await _dispatcher.fire(TestAction.closeAccount)
-        XCTAssertEqual(_middleware.postActions.map(\.1), [.closeAccount])
-
         _middleware.authState = .authenticated
-        try await _dispatcher.fire(TestAction.closeAccount)
+        do {
+            try await _dispatcher.fire(TestAction.closeAccount)
+            XCTFail()
+        } catch {
+            // Workers and middleware got the action only in the right stage
+            XCTAssertEqual(_middleware.preActions.map(\.1), [.closeAccount])
+            XCTAssertEqual(_middleware.postActions.map(\.1), [])
+            XCTAssertEqual(_service.actions.map(\.1), [])
+            XCTAssertEqual(_middleware.failures.map(\.1), [.closeAccount])
+            XCTAssertEqual(_middleware.failures.map { $0.2 as? TestError },
+                           [TestError.accessDenied])
 
-        // Workers and middleware got the action only in the right stage
-        XCTAssertEqual(_middleware.preActions.map(\.1), [.closeAccount])
-        XCTAssertEqual(_middleware.postActions.map(\.1), [])
-        XCTAssertEqual(_service.actions.map(\.1), [])
-        XCTAssertEqual(_middleware.failures.map(\.1), [.closeAccount])
-        XCTAssertEqual(_middleware.failures.map { $0.2 as? TestError },
-                       [TestError.accessDenied])
-
-        // The action went from a stage to another in the right order
-        XCTAssertLessThan(_middleware.preActions[0].0, _middleware.failures[0].0)
+            // The action went from a stage to another in the right order
+            XCTAssertLessThan(_middleware.preActions[0].0, _middleware.failures[0].0)
+        }
     }
 
     func testMiddlewareNoRewrite() async throws {
@@ -79,15 +78,21 @@ final class MiddlewareTests: XCTestCase {
         try await _dispatcher.fire(TestAction.registerNewDevice(id: ""))
 
         // `.registerNewDevice` should not be called until authenticated
-        XCTAssertEqual(_service.actions.map(\.1),
+        XCTAssertEqual(_service.actions.map(\.1.name),
                        [.postpone(.registerNewDevice, until: .login)])
 
         _middleware.authState = .authenticated
         try await _dispatcher.fire(TestAction.login(email: "", password: ""))
 
         // `.registerNewDevice` should only be called if `.fetchAccount` was already called, or, if not, right after it
-        XCTAssertEqual(_service.actions.map(\.1.name),
-                       [.postpone(.registerNewDevice, until: .login), .login])
+        XCTAssertEqual(
+            _service.actions.map(\.1.name),
+            [
+                .postpone(.registerNewDevice, until: .login),
+                .login,
+                .postpone(.registerNewDevice, until: .fetchAccount)
+            ]
+        )
 
         try await _dispatcher.fire(TestAction.fetchAccount)
 
@@ -96,6 +101,7 @@ final class MiddlewareTests: XCTestCase {
             [
                 .postpone(.registerNewDevice, until: .login),
                 .login,
+                .postpone(.registerNewDevice, until: .fetchAccount),
                 .fetchAccount,
                 .registerNewDevice
             ]
@@ -111,8 +117,16 @@ final class MiddlewareTests: XCTestCase {
         _middleware.authState = .authenticated
         try await _dispatcher.fire(TestAction.login(email: "", password: ""))
 
-        XCTAssertEqual(_service.actions.map(\.1.name),
-                       [.login, .fetchAccount, .registerNewDevice])
+        XCTAssertEqual(
+            _service.actions.map(\.1.name),
+            [
+                .postpone(.fetchAccount, until: .login),
+                .postpone(.registerNewDevice, until: .login),
+                .login,
+                .fetchAccount,
+                .registerNewDevice
+            ]
+        )
     }
 
     func testMiddlewareWaitOnlyForFutureOthers() async throws {
@@ -126,6 +140,6 @@ final class MiddlewareTests: XCTestCase {
         )
 
         XCTAssertEqual(_service.actions.map(\.1.name),
-                       [.login, .fetchAccount])
+                       [.login, .fetchAccount, .registerNewDevice])
     }
 }

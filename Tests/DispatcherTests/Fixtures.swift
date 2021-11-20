@@ -11,7 +11,7 @@ import XCTest
 class State {}
 
 /// To make things easier to follow, the tests are working with a set of toy actions that emulate an app that has authentication, both as a regular user and admin, a simple audio player available only to authenticated users and a set of admin-specific actions.
-enum TestAction: Action, Hashable {
+indirect enum TestAction: Action, Hashable {
     // Authentication
     case login(email: String, password: String)
     case logout
@@ -36,7 +36,7 @@ enum TestAction: Action, Hashable {
     case nav(path: String)
 
     // Utils
-    case postpone(TestAction.Name, until: TestAction.Name)
+    case postpone(TestAction, until: TestAction.Name)
 
     // This section is required because Swift doesn't synthetize the **name** of the enum and we can't use the enum itself since some have associated values (e.g. `.login(email: String, password: String)`
     indirect enum Name: Hashable {
@@ -71,7 +71,7 @@ enum TestAction: Action, Hashable {
         case .closeAccount: return .closeAccount
         case .alert: return .alert
         case .nav: return .nav
-        case let .postpone(name, until): return .postpone(name, until: until)
+        case let .postpone(action, until): return .postpone(action.name, until: until)
         }
     }
 }
@@ -80,7 +80,7 @@ enum TestError: Error, Equatable {
     case accessDenied
 }
 
-@available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+@available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 class TestService: Worker {
     var actions: [(Date, TestAction)] = []
 
@@ -90,7 +90,7 @@ class TestService: Worker {
     }
 }
 
-@available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+@available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 class TestMiddleware: Middleware {
     unowned let dispatcher: Dispatcher
 
@@ -104,8 +104,8 @@ class TestMiddleware: Middleware {
         case admin
     }
 
-    var waitForAuthentication: ActionFlow<TestAction> = .init()
-    var waitForAccountFetching: ActionFlow<TestAction> = .init()
+    var waitForAuthentication: ActionFlow<TestAction> = .empty(type: TestAction.self)
+    var waitForAccountFetching: ActionFlow<TestAction> = .empty(type: TestAction.self)
     var authState: AuthState = .unauthenticated
     var preActions: [(Date, TestAction)] = []
     var postActions: [(Date, TestAction)] = []
@@ -132,26 +132,26 @@ class TestMiddleware: Middleware {
         if authState == .unauthenticated,
            authenticatedActionsNames.contains(action.name)
         {
-            waitForAuthentication = waitForAuthentication.then(action)
-            return .redirect(to: .postpone(action.name,
-                                           until: .login))
+            let redirection: TestAction = .postpone(action,
+                                                    until: .login)
+            return .redirect(to: .single(action: redirection))
         }
 
         // If we have to register the device id, check if the account is unauthenticated, if so, look behind in history and fire `.registerNewDevice` either right away, if `.login` was already fired, or right after `.login` fires.
         // Alternatively, if the account is already authenticated, wait for `.fetchAccount` and fire right after it
         if action.name == .registerNewDevice {
             if authState == .unauthenticated {
-                waitForAuthentication = waitForAuthentication.then(action)
-                return .redirect(to: .postpone(action.name,
-                                               until: .login))
+                let redirection: TestAction = .postpone(action,
+                                                        until: .login)
+                return .redirect(to: .single(action: redirection))
             } else {
                 if !dispatcher.history.actions
                     .map(\.name)
                     .contains(TestAction.fetchAccount.name)
                 {
-                    waitForAccountFetching = waitForAccountFetching.then(action)
-                    return .redirect(to: .postpone(action.name,
-                                                   until: .fetchAccount))
+                    let redirection: TestAction = .postpone(action,
+                                                            until: .fetchAccount)
+                    return .redirect(to: .single(action: redirection))
                 } else {
                     return .none
                 }
@@ -162,17 +162,44 @@ class TestMiddleware: Middleware {
         if authState == .unauthenticated,
            authenticatedActionsNames.contains(action.name)
         {
-            return .redirect(to: .nav(path: "/login"))
+            return .redirect(to: .single(action: .nav(path: "/login")))
         }
 
-        if authState != .admin, adminActionsNames.contains(action.name) {
+        if authState != .admin,
+           adminActionsNames.contains(action.name)
+        {
             throw TestError.accessDenied
+        }
+
+        if action.name == .login, !waitForAuthentication.actions.isEmpty {
+            defer {
+                waitForAuthentication = .empty(type: TestAction.self)
+            }
+            return .redirect(to: action.then(flow: waitForAuthentication))
+        }
+
+        if action.name == .fetchAccount, !waitForAccountFetching.actions.isEmpty {
+            defer {
+                waitForAccountFetching = .empty(type: TestAction.self)
+            }
+            return .redirect(to: action.then(flow: waitForAccountFetching))
         }
 
         return .none
     }
 
     func post(action: TestAction) {
+        switch action {
+        case let .postpone(other, until):
+            if until == .fetchAccount {
+                waitForAccountFetching = waitForAccountFetching.then(other)
+            } else if until == .login {
+                waitForAuthentication = waitForAuthentication.then(other)
+            }
+        default:
+            break
+        }
+
         postActions.append((Date.now, action))
     }
 

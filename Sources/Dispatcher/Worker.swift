@@ -15,13 +15,13 @@ public protocol Worker {
     /// The `execute(action:)` method is called by the dispatcher when an action needs to be processed and executed
     func execute(_ action: A) -> AnyPublisher<Void, Error>
     /// The `execute(action:)` method is called by the dispatcher when an action needs to be processed and executed
-    @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     func execute(_ action: A) async throws
 }
 
 public extension Worker {
     func execute(_ action: A) -> AnyPublisher<Void, Error> {
-        if #available(iOS 15.0, watchOS 8.0, tvOS 15.0, *) {
+        if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
             let pub: PassthroughSubject<Void, Error> = PassthroughSubject()
             Task {
                 do {
@@ -42,7 +42,7 @@ public extension Worker {
         }
     }
 
-    @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     func execute(_: A) async throws {}
 }
 

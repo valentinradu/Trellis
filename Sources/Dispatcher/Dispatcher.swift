@@ -18,7 +18,7 @@ import Combine
  */
 public class Dispatcher {
     public typealias Completion = (Result<Void, Error>) -> Void
-    public private(set) var history: ActionFlow<AnyAction> = .init(actions: [])
+    public private(set) var history: ActionFlow<AnyAction> = .empty()
 
     private var _workers: [AnyWorker] = []
     private var _middlewares: [AnyMiddleware] = []
@@ -51,7 +51,7 @@ public class Dispatcher {
     {
         _cancellables = []
         if history {
-            self.history = .init(actions: [])
+            self.history = .empty()
         }
         if workers {
             _workers = []
@@ -146,7 +146,7 @@ public class Dispatcher {
     /**
      Fires an action using `async/await`
      */
-    @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     public func fire<A: Action>(_ action: A) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
             fire(action) {
@@ -163,7 +163,7 @@ public class Dispatcher {
     /**
      Fires an action flow using `async/await`
      */
-    @available(iOS 15.0, watchOS 8.0, tvOS 15.0, *)
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     public func fire<A: Action>(_ flow: ActionFlow<A>) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
             fire(flow) {
@@ -180,66 +180,85 @@ public class Dispatcher {
 
 private extension Dispatcher {
     func _fire<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
-        var action = AnyAction(action)
-        do {
-            for middleware in _middlewares {
-                let rewrite = try middleware.pre(action: action)
-
-                switch rewrite {
-                case let .redirect(newAction):
-                    action = newAction
-                    break
-                case .none:
-                    continue
-                }
-            }
-
-            var pubs: [AnyPublisher<Void, Error>] = []
-
-            for worker in _workers {
-                pubs.append(worker.execute(action))
-            }
-
-            return Publishers.MergeMany(pubs)
-                .collect()
-                .map { _ in () }
-                .flatMap {
-                    Future<Void, Error> { promise in
-                        self.history = self.history.then(action)
-
-                        for middleware in self._middlewares {
-                            middleware.post(action: action)
-                        }
-
-                        promise(.success(()))
-                    }
-                    .eraseToAnyPublisher()
-                }
-                .share()
-                .eraseToAnyPublisher()
-        } catch {
-            return Fail(outputType: Void.self,
-                        failure: error)
-                .eraseToAnyPublisher()
-        }
+        _fire(.init(actions: [action]))
     }
 
     func _fire<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
-        if let first = flow.actions.first {
-            var pub = _fire(first)
-            for action in flow.actions[1...] {
-                pub = pub
-                    .flatMap {
-                        self._fire(action)
-                    }
-                    .eraseToAnyPublisher()
-            }
+        var pub = Just(())
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
 
-            return pub
-        } else {
-            return Just(())
-                .setFailureType(to: Error.self)
+        var stack = Array(
+            flow.actions
+                .map { AnyAction($0) }
+        )
+
+        while !stack.isEmpty {
+            let action = stack.removeFirst()
+            pub = pub
+                .flatMap { [self] () -> AnyPublisher<Void, Error> in
+                    for middleware in _middlewares {
+                        do {
+                            let rewrite = try middleware.pre(action: AnyAction(action))
+
+                            switch rewrite {
+                            case let .redirect(otherFlow):
+                                let actions = otherFlow.actions + stack
+                                return _fire(.init(actions: actions))
+                            case .none:
+                                continue
+                            }
+                        } catch {
+                            for middleware in _middlewares {
+                                middleware.failure(action: action,
+                                                   error: error)
+                            }
+                            return Fail(outputType: Void.self,
+                                        failure: error)
+                                .eraseToAnyPublisher()
+                        }
+                    }
+
+                    var workerPubs: [AnyPublisher<Void, Error>] = []
+                    for worker in _workers {
+                        workerPubs.append(
+                            worker.execute(action)
+                                .handleEvents(receiveCompletion: { [self] result in
+                                    switch result {
+                                    case let .failure(error):
+                                        for middleware in _middlewares {
+                                            middleware.failure(action: action, error: error)
+                                        }
+                                    case .finished:
+                                        break
+                                    }
+                                })
+                                .share()
+                                .eraseToAnyPublisher()
+                        )
+                    }
+
+                    return Publishers.MergeMany(workerPubs)
+                        .collect()
+                        .map { _ in () }
+                        .flatMap {
+                            Future<Void, Error> { promise in
+                                self.history = self.history.then(action)
+
+                                for middleware in self._middlewares {
+                                    middleware.post(action: action)
+                                }
+
+                                promise(.success(()))
+                            }
+                            .eraseToAnyPublisher()
+                        }
+                        .share()
+                        .eraseToAnyPublisher()
+                }
                 .eraseToAnyPublisher()
         }
+        
+        return pub
     }
 }
