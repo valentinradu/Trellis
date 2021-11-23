@@ -84,9 +84,10 @@ enum TestError: Error, Equatable {
 class TestService: Worker {
     var actions: [(Date, TestAction)] = []
 
-    func execute(_ action: TestAction) async throws {
+    func execute(_ action: TestAction) async throws -> ActionFlow<TestAction> {
         await Task.sleep(UInt64(0.3 * Double(NSEC_PER_SEC)))
         actions.append((Date.now, action))
+        return .empty()
     }
 }
 
@@ -104,8 +105,8 @@ class TestMiddleware: Middleware {
         case admin
     }
 
-    var waitForAuthentication: ActionFlow<TestAction> = .empty(type: TestAction.self)
-    var waitForAccountFetching: ActionFlow<TestAction> = .empty(type: TestAction.self)
+    var waitForAuthentication: ActionFlow<TestAction> = .empty()
+    var waitForAccountFetching: ActionFlow<TestAction> = .empty()
     var authState: AuthState = .unauthenticated
     var preActions: [(Date, TestAction)] = []
     var postActions: [(Date, TestAction)] = []
@@ -146,6 +147,7 @@ class TestMiddleware: Middleware {
                 return .redirect(to: .single(action: redirection))
             } else {
                 if !dispatcher.history.actions
+                    .compactMap({ $0.wrappedValue as? TestAction })
                     .map(\.name)
                     .contains(TestAction.fetchAccount.name)
                 {
@@ -173,14 +175,14 @@ class TestMiddleware: Middleware {
 
         if action.name == .login, !waitForAuthentication.actions.isEmpty {
             defer {
-                waitForAuthentication = .empty(type: TestAction.self)
+                waitForAuthentication = .empty()
             }
             return .redirect(to: action.then(flow: waitForAuthentication))
         }
 
         if action.name == .fetchAccount, !waitForAccountFetching.actions.isEmpty {
             defer {
-                waitForAccountFetching = .empty(type: TestAction.self)
+                waitForAccountFetching = .empty()
             }
             return .redirect(to: action.then(flow: waitForAccountFetching))
         }

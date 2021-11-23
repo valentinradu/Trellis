@@ -11,13 +11,16 @@ import Combine
  The dispatcher propagates actions to workers.
  Its main jobs are:
     - to register workers
+    - to register middlewares
     - to fire actions
-    - to handle redirection
+    - to handle redirections
 
  - note: All the async `fire` operations also have `Combine`, `async/await` and legacy callback closures support.
  */
 public class Dispatcher {
     public typealias Completion = (Result<Void, Error>) -> Void
+
+    /// All the actions fired since the dispatcher was initiated or reseted
     public private(set) var history: ActionFlow<AnyAction> = .empty()
 
     private var _workers: [AnyWorker] = []
@@ -86,7 +89,7 @@ public class Dispatcher {
     }
 
     /**
-     Fires an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the workers. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed anymore.
+     Fires an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the workers. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed.
         - parameter flow: The action flow
      */
     public func fire<A: Action>(_ flow: ActionFlow<A>,
@@ -233,6 +236,9 @@ private extension Dispatcher {
                                         break
                                     }
                                 })
+                                .flatMap {
+                                    _fire($0)
+                                }
                                 .share()
                                 .eraseToAnyPublisher()
                         )
@@ -258,7 +264,7 @@ private extension Dispatcher {
                 }
                 .eraseToAnyPublisher()
         }
-        
+
         return pub
     }
 }

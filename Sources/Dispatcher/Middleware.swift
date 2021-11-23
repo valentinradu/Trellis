@@ -10,9 +10,9 @@ import Combine
 /**
  The middleware is used for:
  1) Blocking, postponing or redirecting an action *before* sending it to the workers
- 2) Hadling all errors in one place, no matter their kind, as long as they originate from an worker
- 3) Take additional actions, like, logging or asserting, after all the workers finished processing an action
- - remark: When using multiple middlewares, only the first one `.redirect`ing an action is considered. The rest are never called. Since middleware execution order is not guaranteed, it's best if you only redirect or defer one kind of action per middleware.
+ 2) Hadling all errors in one place
+ 3) Take additional steps, like, logging or asserting, after all the workers finished processing an action
+ - remark: When using multiple middlewares, if any attempts to `.redirect`, the subsequent ones are not called. Since middleware execution order is not guaranteed, it's best if you only redirect or defer one kind of action per middleware.
  */
 public protocol Middleware {
     associatedtype A: Action

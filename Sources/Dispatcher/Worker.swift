@@ -8,25 +8,31 @@
 import Combine
 
 /**
- Workers are specialized in processing task when receiving specific actions. For example, you could have a worker handling authentication, other handling identity, other persistence, and so on. The worker usually can access and modify the state and has a weak (`unowned`) reference to the dispatcher.
+ Workers are specialized in processing tasks when receiving specific actions. For example, you could have a worker handling authentication, other handling the server API, other persistence, and so on. The worker usually can access and modify the state of the app.
  */
 public protocol Worker {
     associatedtype A: Action
-    /// The `execute(action:)` method is called by the dispatcher when an action needs to be processed and executed
-    func execute(_ action: A) -> AnyPublisher<Void, Error>
-    /// The `execute(action:)` method is called by the dispatcher when an action needs to be processed and executed
+    /**
+     The `execute(action:)` method is called by the dispatcher when an action needs to be processed.
+        - returns: A publisher that returns an action flow executed right after the current action
+     */
+    func execute(_ action: A) -> AnyPublisher<ActionFlow<A>, Error>
+    /**
+     The `execute(action:)` method is called by the dispatcher when an action needs to be processed and executed
+        - returns: An action flow executed right after the current action
+     */
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    func execute(_ action: A) async throws
+    func execute(_ action: A) async throws -> ActionFlow<A>
 }
 
 public extension Worker {
-    func execute(_ action: A) -> AnyPublisher<Void, Error> {
+    func execute(_ action: A) -> AnyPublisher<ActionFlow<A>, Error> {
         if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
-            let pub: PassthroughSubject<Void, Error> = PassthroughSubject()
+            let pub: PassthroughSubject<ActionFlow<A>, Error> = PassthroughSubject()
             Task {
                 do {
-                    try await execute(action)
-                    pub.send()
+                    let others = try await execute(action)
+                    pub.send(others)
                     pub.send(completion: .finished)
                 } catch {
                     pub.send(completion: .failure(error))
@@ -36,14 +42,16 @@ public extension Worker {
             return pub
                 .eraseToAnyPublisher()
         } else {
-            return Just(())
+            return Just(.empty())
                 .setFailureType(to: Error.self)
                 .eraseToAnyPublisher()
         }
     }
 
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    func execute(_: A) async throws {}
+    func execute(_: A) async throws -> ActionFlow<AnyAction> {
+        return .empty()
+    }
 }
 
 /**
@@ -51,21 +59,25 @@ public extension Worker {
  */
 public struct AnyWorker: Worker {
     public typealias A = AnyAction
-    private let executeClosure: (AnyAction) -> AnyPublisher<Void, Error>
+    private let executeClosure: (AnyAction) -> AnyPublisher<ActionFlow<A>, Error>
 
     public init<W: Worker>(_ source: W) {
         executeClosure = {
             if let action = $0.wrappedValue as? W.A {
                 return source.execute(action)
+                    .map {
+                        ActionFlow(actions: $0.actions.map { AnyAction($0) })
+                    }
+                    .eraseToAnyPublisher()
             } else {
-                return Just(())
+                return Just(.empty())
                     .setFailureType(to: Error.self)
                     .eraseToAnyPublisher()
             }
         }
     }
 
-    public func execute(_ action: A) -> AnyPublisher<Void, Error> {
+    public func execute(_ action: A) -> AnyPublisher<ActionFlow<A>, Error> {
         executeClosure(action)
     }
 }
