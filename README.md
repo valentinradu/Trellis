@@ -23,7 +23,7 @@ There are 4 actors that work together in Dispatcher: `Action`s, `Middleware`s, `
 
 Actions drive all the other actors. They model all the possible events that your application can handle. Also, once fired, most of them will lead to a state mutation inside the workers.
 
- ```
+ ```swift
  /// An example of 3 actions used to authenticate a user
  enum GatekeeperAction: Action {
      case login(email: String, password: String)
@@ -40,7 +40,7 @@ Middlewares are getting called before/after *any* of the workers start/finish pr
 - The `post(action:)` method is called after all the workers finished processing the action.
 - The `failure(action:, error:)` methods is called when any of the workers raise an error.
 
-```
+```swift
 /// An example of a middleware blocking all user actions until a authenticated user is present 
 
 enum UserAction: Action {
@@ -64,7 +64,7 @@ func pre(action: UserAction) throws -> Rewrite<UserAction> {
 The workers (sometimes called services) contain most of the business logic in a Dispatcher-architectured app. Each worker should handle a specific set of tasks that go together well. Like authentication, profile, prefetching, persistance, various (article, users, likes, etc) repositories and so on.
 Workers will ignore most of the actions they receive in `execute(action:)` handling only relevant ones. `execute(action:)` is async in nature (works with legacy callbacks, `Combine` and/or `await/async`) allowing you to offload work to other threads, make network requests or call other async mathods.
 
-```
+```swift
 /// A authentication service
 class AuthService: Worker {
     func execute(_ action: TestAction) async throws -> ActionFlow<TestAction> {
@@ -89,7 +89,7 @@ The dispatcher's main purpose is to fire actions (`fire(action:)`), starting the
 
 There is no built-in way to block an action, one of the rules Dispatcher follows is: once an action is fired, it will always either complete or fail. This is keeping everything consistent and predictable and its very helpful for debugging. However, it's trivial to add a `.noop` action that gets ignored by all your workers. Redirecting to this `.noop` action in the middleware will behave like you're blocking current the action, however, it also keeps things predictable and consistent as described above. 
 
-```
+```swift
 /// Blocking actions when the user is not authenticated
 func pre(action: UserAction) throws -> Rewrite<UserAction> {
     // If user is not authenticated, redirect to `.noop` and do nothing
@@ -103,7 +103,7 @@ func pre(action: UserAction) throws -> Rewrite<UserAction> {
 
 There is no built-in way to postpone an action, however, just like with blocking actions, one can have a `.postpone(action:)` action that stacks actions in an `ActionFlow` until a certain other action is fired.
 
-```
+```swift
 /// Postponing an action until the user is authenticated
 
 var postponedActions: ActionFlow<UserAction> = .empty()
@@ -138,7 +138,7 @@ func post(action: TestAction) {
 
 When packing actions as `enum`s it's somewhat common to also refer the actions by name only (without the parameters). One way to do it is by having another inner `enum` that maps the action to its name as done in the example below.
 
-```
+```swift
 enum UserAction: Action {
     case login(email: String, password: String)
     case logout
