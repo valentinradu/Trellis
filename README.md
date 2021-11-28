@@ -1,4 +1,4 @@
-# Firestarter
+# ![Firestarter](firestarter.svg)
 
 
 Firestarter is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. 
@@ -13,7 +13,7 @@ Firestarter is a zero-dependency architectural framework that helps you write cl
 - supports redirects and deffered calls
 - full action history
 - works with legacy callbacks, `Combine` and/or `await/async` 
-- tested, coverage 100%
+- fully tested
 
 ## Core Concepts
 
