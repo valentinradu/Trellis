@@ -1,7 +1,7 @@
-# Dispatcher
+# Firestarter
 
 
-Dispatcher is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. 
+Firestarter is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. 
 
 
 ## Features
@@ -17,7 +17,7 @@ Dispatcher is a zero-dependency architectural framework that helps you write cle
 
 ## Core Concepts
 
-There are 4 actors that work together in Dispatcher: `Action`s, `Middleware`s, `Worker`s and the `Dispatcher`. The first 3 are protocols that can be adopted by any `struct`, `class` and even `enum` for actions. The dispatcher is the entry point, the entity that fires actions and triggers the `dispatcher -> pre (middleware) -> worker -> post (middleware)` processing flow.
+There are 4 actors that work together in Firestarter: `Action`s, `Middleware`s, `Worker`s and the `Dispatcher`. The first 3 are protocols that can be adopted by any `struct`, `class` and even `enum` for actions. The dispatcher is the entry point, the entity that fires actions and triggers the `dispatcher -> pre (middleware) -> worker -> post (middleware)` processing flow.
 
 ### Actions
 
@@ -61,7 +61,7 @@ func pre(action: UserAction) throws -> Rewrite<UserAction> {
 
 ### Workers
 
-The workers (sometimes called services) contain most of the business logic in a Dispatcher-architectured app. Each worker should handle a specific set of tasks that go together well. Like authentication, profile, prefetching, persistance, various (article, users, likes, etc) repositories and so on.
+The workers (sometimes called services) contain most of the business logic in a Firestarter-architectured app. Each worker should handle a specific set of tasks that go together well. Like authentication, profile, prefetching, persistance, various (article, users, likes, etc) repositories and so on.
 Workers will ignore most of the actions they receive in `execute(action:)` handling only relevant ones. `execute(action:)` is async in nature (works with legacy callbacks, `Combine` and/or `await/async`) allowing you to offload work to other threads, make network requests or call other async mathods.
 
 ```swift
@@ -87,7 +87,7 @@ The dispatcher's main purpose is to fire actions (`fire(action:)`), starting the
 
 ### Blocking an action
 
-There is no built-in way to block an action, one of the rules Dispatcher follows is: once an action is fired, it will always either complete or fail. This is keeping everything consistent and predictable and its very helpful for debugging. However, it's trivial to add a `.noop` action that gets ignored by all your workers. Redirecting to this `.noop` action in the middleware will behave like you're blocking current the action, however, it also keeps things predictable and consistent as described above. 
+There is no built-in way to block an action, one of the rules Firestarter follows is: once an action is fired, it will always either complete or fail. This is keeping everything consistent and predictable and its very helpful for debugging. However, it's trivial to add a `.noop` action that gets ignored by all your workers. Redirecting to this `.noop` action in the middleware will behave like you're blocking current the action, however, it also keeps things predictable and consistent as described above. 
 
 ```swift
 /// Blocking actions when the user is not authenticated
@@ -162,4 +162,4 @@ enum UserAction: Action {
 
 ## Multi-threading
 
-Dispatcher expects all its methods to be called on the main thread. However, since the `execute(action:)` method of the worker is async, you can always offload the work to multiple threads as long as you return to the main thread before returning the result (e.g. using `receive(on:)` in `Combine`)
+Firestarter expects all its methods to be called on the main thread. However, since the `execute(action:)` method of the worker is async, you can always offload the work to multiple threads as long as you return to the main thread before returning the result (e.g. using `receive(on:)` in `Combine`)

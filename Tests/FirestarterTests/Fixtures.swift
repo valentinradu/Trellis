@@ -5,7 +5,7 @@
 //  Created by Valentin Radu on 02/11/2021.
 //
 
-@testable import Dispatcher
+@testable import Firestarter
 import XCTest
 
 class State {}
