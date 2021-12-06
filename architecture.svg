@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="782px" height="186px" viewBox="0 0 782 186" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Artboard</title>
+    <defs>
+        <rect id="path-1" x="0" y="0" width="48" height="113"></rect>
+        <rect id="path-3" x="-37" y="18" width="75" height="75"></rect>
+        <mask id="mask-4" maskContentUnits="userSpaceOnUse" maskUnits="objectBoundingBox" x="0" y="0" width="75" height="75" fill="white">
+            <use xlink:href="#path-3"></use>
+        </mask>
+        <rect id="path-5" x="0" y="0" width="48" height="113"></rect>
+        <rect id="path-7" x="-37" y="18" width="75" height="75"></rect>
+        <mask id="mask-8" maskContentUnits="userSpaceOnUse" maskUnits="objectBoundingBox" x="0" y="0" width="75" height="75" fill="white">
+            <use xlink:href="#path-7"></use>
+        </mask>
+    </defs>
+    <g id="Artboard" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Group" transform="translate(40.000000, 20.000000)">
+            <mask id="mask-2" fill="white">
+                <use xlink:href="#path-1"></use>
+            </mask>
+            <g id="Rectangle" transform="translate(24.000000, 56.500000) scale(-1, 1) translate(-24.000000, -56.500000) "></g>
+            <g id="Rectangle-Copy-4" stroke-dasharray="6" mask="url(#mask-2)" fill="#FFFAD8" stroke="#FFD23E" stroke-width="6">
+                <use mask="url(#mask-4)" xlink:href="#path-3"></use>
+            </g>
+        </g>
+        <g id="Group-Copy" transform="translate(717.000000, 76.500000) scale(-1, 1) translate(-717.000000, -76.500000) translate(693.000000, 20.000000)">
+            <mask id="mask-6" fill="white">
+                <use xlink:href="#path-5"></use>
+            </mask>
+            <g id="Rectangle" transform="translate(24.000000, 56.500000) scale(-1, 1) translate(-24.000000, -56.500000) "></g>
+            <g id="Rectangle-Copy-4" stroke-dasharray="6" mask="url(#mask-6)" fill="#FFFAD8" stroke="#FFD23E" stroke-width="6">
+                <use mask="url(#mask-8)" xlink:href="#path-7"></use>
+            </g>
+        </g>
+        <rect id="Rectangle" fill="#FFD23E" x="40" y="127" width="38" height="6"></rect>
+        <rect id="Rectangle-Copy" fill="#8452FF" x="178" y="127" width="75" height="6"></rect>
+        <rect id="Rectangle-Copy-2" fill="#8452FF" x="353" y="127" width="75" height="6"></rect>
+        <rect id="Rectangle-Copy-3" fill="#FFD23E" x="528" y="127" width="75" height="6"></rect>
+        <rect id="Rectangle-Copy-10" fill="#FFD23E" x="701" y="127" width="40" height="6"></rect>
+        <rect id="Rectangle-Copy-5" stroke="#8452FF" stroke-width="3" fill="#D9CBFF" x="179.5" y="39.5" width="72" height="72"></rect>
+        <rect id="Rectangle-Copy-11" stroke="#8452FF" stroke-width="3" fill="#D9CBFF" x="354.5" y="39.5" width="31" height="31"></rect>
+        <rect id="Rectangle-Copy-13" stroke="#8452FF" stroke-width="3" fill="#D9CBFF" x="354.5" y="80.5" width="31" height="31"></rect>
+        <rect id="Rectangle-Copy-12" stroke="#8452FF" stroke-width="3" fill="#D9CBFF" x="395.5" y="39.5" width="31" height="31"></rect>
+        <rect id="Rectangle-Copy-14" stroke="#8452FF" stroke-width="3" fill="#D9CBFF" x="395.5" y="80.5" width="31" height="31"></rect>
+        <rect id="Rectangle-Copy-9" stroke="#FFD23E" stroke-width="3" fill="#FFFAD8" x="529.5" y="39.5" width="72" height="72"></rect>
+        <path id="Line" d="M160,71 L169,75.5 L160,80 L160,76 L89,76 L89,75 L160,75 L160,71 Z" fill="#979797" fill-rule="nonzero"></path>
+        <path id="Line-Copy" d="M335,71 L344,75.5 L335,80 L335,76 L264,76 L264,75 L335,75 L335,71 Z" fill="#979797" fill-rule="nonzero"></path>
+        <path id="Line-Copy-2" d="M510,71 L519,75.5 L510,80 L510,76 L439,76 L439,75 L510,75 L510,71 Z" fill="#979797" fill-rule="nonzero"></path>
+        <path id="Line-Copy-3" d="M684,71 L693,75.5 L684,80 L684,76 L613,76 L613,75 L684,75 L684,71 Z" fill="#979797" fill-rule="nonzero"></path>
+        <text id="Action" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#6B6B6B">
+            <tspan x="104.213867" y="68">Action</tspan>
+        </text>
+        <text id="View" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#ABABAB">
+            <tspan x="41.1425781" y="153">View</tspan>
+        </text>
+        <text id="Dispatcher" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#ABABAB">
+            <tspan x="174.356445" y="153">Dispatcher</tspan>
+        </text>
+        <text id="Workers" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#ABABAB">
+            <tspan x="361.499512" y="153">Workers</tspan>
+        </text>
+        <text id="State" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#ABABAB">
+            <tspan x="544.428223" y="153">State</tspan>
+        </text>
+        <text id="View" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#ABABAB">
+            <tspan x="705.142578" y="153">View</tspan>
+        </text>
+        <text id="Task" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#6B6B6B">
+            <tspan x="287.142578" y="68">Task</tspan>
+        </text>
+        <text id="Update" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#6B6B6B">
+            <tspan x="453.213867" y="68">Update</tspan>
+        </text>
+        <text id="Notify" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#6B6B6B">
+            <tspan x="627.213867" y="68">Notify</tspan>
+        </text>
+    </g>
+</svg>
