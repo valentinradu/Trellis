@@ -21,7 +21,7 @@ public class Dispatcher {
     public typealias Completion = (Result<Void, Error>) -> Void
 
     /// All the actions fired since the dispatcher was initiated or reseted
-    public private(set) var history: ActionFlow<AnyAction> = .empty()
+    public private(set) var history: ActionFlow<AnyAction> = .empty
 
     private var _workers: [AnyWorker] = []
     private var _middlewares: [AnyMiddleware] = []
@@ -54,7 +54,7 @@ public class Dispatcher {
     {
         _cancellables = []
         if history {
-            self.history = .empty()
+            self.history = .empty
         }
         if workers {
             _workers = []

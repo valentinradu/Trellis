@@ -87,7 +87,7 @@ class TestService: Worker {
     func execute(_ action: TestAction) async throws -> ActionFlow<TestAction> {
         await Task.sleep(UInt64(0.3 * Double(NSEC_PER_SEC)))
         actions.append((Date.now, action))
-        return .empty()
+        return .empty
     }
 }
 
@@ -105,8 +105,8 @@ class TestMiddleware: Middleware {
         case admin
     }
 
-    var waitForAuthentication: ActionFlow<TestAction> = .empty()
-    var waitForAccountFetching: ActionFlow<TestAction> = .empty()
+    var waitForAuthentication: ActionFlow<TestAction> = .empty
+    var waitForAccountFetching: ActionFlow<TestAction> = .empty
     var authState: AuthState = .unauthenticated
     var preActions: [(Date, TestAction)] = []
     var postActions: [(Date, TestAction)] = []
@@ -175,14 +175,14 @@ class TestMiddleware: Middleware {
 
         if action.name == .login, !waitForAuthentication.actions.isEmpty {
             defer {
-                waitForAuthentication = .empty()
+                waitForAuthentication = .empty
             }
             return .redirect(to: action.then(flow: waitForAuthentication))
         }
 
         if action.name == .fetchAccount, !waitForAccountFetching.actions.isEmpty {
             defer {
-                waitForAccountFetching = .empty()
+                waitForAccountFetching = .empty
             }
             return .redirect(to: action.then(flow: waitForAccountFetching))
         }

@@ -42,7 +42,7 @@ public extension Worker {
             return pub
                 .eraseToAnyPublisher()
         } else {
-            return Just(.empty())
+            return Just(.empty)
                 .setFailureType(to: Error.self)
                 .eraseToAnyPublisher()
         }
@@ -50,7 +50,7 @@ public extension Worker {
 
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     func execute(_: A) async throws -> ActionFlow<AnyAction> {
-        return .empty()
+        return .empty
     }
 }
 
@@ -70,7 +70,7 @@ public struct AnyWorker: Worker {
                     }
                     .eraseToAnyPublisher()
             } else {
-                return Just(.empty())
+                return Just(.empty)
                     .setFailureType(to: Error.self)
                     .eraseToAnyPublisher()
             }
