@@ -7,6 +7,7 @@
 
 Firestarter is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. 
 
+# ![Architecture](architecture.svg)
 
 ## Features
 
