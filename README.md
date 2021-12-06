@@ -10,12 +10,12 @@ Firestarter is a zero-dependency architectural framework that helps you write cl
 # ![Architecture](architecture.svg)
 
 ## Index
-* [Features](#features-)
-* [Core Concepts](#core-concepts-)
-* [Common patterns](#common-patterns-)
-* [Multi-threading](#multi-threading-)
-* [SwiftUI example](#swiftui-example-)
-* [License](#license-)
+* [Features](#features)
+* [Core Concepts](#core-concepts)
+* [Common patterns](#common-patterns)
+* [Multi-threading](#multi-threading)
+* [SwiftUI example](#swiftui-example)
+* [License](#license)
 
 ## Features
 
@@ -181,7 +181,7 @@ Firestarter expects all its methods to be called on the main thread. However, si
 
 ## SwiftUI example
 
-```
+```swift
 // Actions.swift
 // An enum containing all the actions (events) an app can trigger
 enum AppAction: Action {
@@ -193,11 +193,17 @@ enum AppAction: Action {
 }
 
 // Middleware.swift
-// A class that receives all actions before any worker (before the action gets processed) and has the opportunity to redirect it to another action. Like workers, it has read access to the state, unlike workers, it should not mutate the state. The middleware is optional.
+// A class that receives all actions before any worker
+// (before the action gets processed) and has the opportunity 
+// to redirect it to another action. Like workers, it has read access 
+// to the state, unlike workers, it should not mutate the state. 
+// The middleware is optional.
 class Middleware: Middleware {
     let state: AppState
     func pre(action: AppAction) throws -> Rewrite<AppAction> {
-        // If the user is not authenticated, we can redirect to `.noop` which is an action not handled by any of the workers, essentially stoping the processing flow.
+        // If the user is not authenticated, we can redirect to `.noop` 
+        // which is an action not handled by any of the workers, 
+        // essentially stoping the processing flow.
         if state.user == .unauthenticated {
             return .redirect(to: .single(action: .noop))
         }
@@ -205,7 +211,11 @@ class Middleware: Middleware {
 }
 
 // AuthService.swift
-// The `AuthService` is handling all authentication-related actions. It can offload work to secondary threads, handle business logic, delegate work other modules and so on. Each action handled here usually mutates the state. It returns an action flow if other actions need executing right after the current, or `.empty`. 
+// The `AuthService` is handling all authentication-related actions. 
+// It can offload work to secondary threads, handle business logic, 
+// delegate work other modules and so on. Each action handled here usually 
+// mutates the state. It returns an action flow if other actions need executing 
+// right after the current, or `.empty`. 
 class AuthService: Worker {
     let state: AppState
     func execute(_ action: AppAction) async throws -> ActionFlow<AppAction> {
@@ -216,7 +226,8 @@ class AuthService: Worker {
             state.user == .authenticated(user)
             // make the server login call, update the app state etc
         case .logout:
-            // clear state, reset the dispatcher, remove any user-persisting data etc
+            // clear state, reset the dispatcher, 
+            // remove any user-persisting data etc
         case resetPassword:
             // make the server reset password call
         }
@@ -226,7 +237,8 @@ class AuthService: Worker {
 }
 
 // App.swift
-// Here's where we put everything together and expose the dispatcher and the state to the view tree
+// Here's where we put everything together and expose 
+// the dispatcher and the state to the view tree
 @main
 struct MyApp: App {
     var body: some Scene {
