@@ -5,7 +5,7 @@
 [![Xcode](https://img.shields.io/badge/Xcode-13-blue.svg?style=for-the-badge&logo=Xcode&logoColor=white)](https://developer.apple.com/xcode)
 [![MIT](https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Firestarter is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. 
+Firestarter is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. Loosely inspired by Redux, it's very lightweight, just a couple of hundreds of lines of code. It can be used as a framework, but can also serve as inspiration for your own Redux-like architecture.
 
 # ![Architecture](architecture.svg)
 
