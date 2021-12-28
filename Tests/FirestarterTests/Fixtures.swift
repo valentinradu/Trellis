@@ -85,7 +85,7 @@ class TestService: Worker {
     var actions: [(Date, TestAction)] = []
 
     func execute(_ action: TestAction) async throws -> ActionFlow<TestAction> {
-        await Task.sleep(UInt64(0.3 * Double(NSEC_PER_SEC)))
+        try await Task.sleep(nanoseconds: UInt64(0.3 * Double(NSEC_PER_SEC)))
         actions.append((Date.now, action))
         return .empty
     }
