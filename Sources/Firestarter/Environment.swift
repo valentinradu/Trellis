@@ -13,7 +13,7 @@ public protocol DependencyKey {
 }
 
 public struct Environment {
-    subscript<K>(_ key: K.Type) -> K.Value where K: DependencyKey {
+    public subscript<K>(_ key: K.Type) -> K.Value where K: DependencyKey {
         get { key.value }
         set { key.value = newValue }
     }
