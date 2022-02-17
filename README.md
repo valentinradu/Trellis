@@ -89,7 +89,7 @@ class AuthService: Reducer {
         // ...
         }
         
-        return .empty
+        return .noop
     }
 }
 ```
@@ -121,7 +121,7 @@ There is no built-in way to postpone an action, however, just like with blocking
 ```swift
 /// Postponing an action until the user is authenticated
 
-var postponedActions: ActionFlow<UserAction> = .empty()
+var postponedActions: ActionFlow<UserAction> = .noop()
 
 func pre(action: UserAction) throws -> Rewrite<UserAction> {
     switch action.name {
@@ -215,7 +215,7 @@ class Middleware: Middleware {
 // It can offload work to secondary threads, handle business logic, 
 // delegate work other modules and so on. Each action handled here usually 
 // mutates the state. It returns an action flow if other actions need executing 
-// right after the current, or `.empty`. 
+// right after the current, or `.noop`. 
 class AuthService: Reducer {
     let state: AppState
     func receive(_ action: AppAction) async throws -> ActionFlow<AppAction> {
@@ -232,7 +232,7 @@ class AuthService: Reducer {
             // make the server reset password call
         }
         
-        return .empty
+        return .noop
     }
 }
 

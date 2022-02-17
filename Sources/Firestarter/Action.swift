@@ -54,7 +54,7 @@ public struct ActionFlow<A: Action> {
         ActionFlow<A>(actions: [action])
     }
 
-    public static var empty: ActionFlow<A> {
+    public static var noop: ActionFlow<A> {
         ActionFlow<A>(actions: [])
     }
 

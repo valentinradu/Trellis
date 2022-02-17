@@ -46,7 +46,7 @@ public extension Reducer {
             return pub
                 .eraseToAnyPublisher()
         } else {
-            return Just(.empty)
+            return Just(.noop)
                 .setFailureType(to: Error.self)
                 .eraseToAnyPublisher()
         }
@@ -54,7 +54,7 @@ public extension Reducer {
 
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     func receive(_: A, environment _: Environment) async throws -> ActionFlow<AnyAction> {
-        return .empty
+        return .noop
     }
 }
 
@@ -75,7 +75,7 @@ public struct AnyReducer: Reducer {
                     }
                     .eraseToAnyPublisher()
             } else {
-                return Just(.empty)
+                return Just(.noop)
                     .setFailureType(to: Error.self)
                     .eraseToAnyPublisher()
             }

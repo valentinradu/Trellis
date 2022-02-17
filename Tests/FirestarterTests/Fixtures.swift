@@ -102,7 +102,7 @@ class TestService: Reducer {
         try await Task.sleep(nanoseconds: UInt64(0.3 * Double(NSEC_PER_SEC)))
         actions.append((Date.now, action))
         environment = localEnvironment
-        return .empty
+        return .noop
     }
 }
 
@@ -120,8 +120,8 @@ class TestMiddleware: Middleware {
         case admin
     }
 
-    var waitForAuthentication: ActionFlow<TestAction> = .empty
-    var waitForAccountFetching: ActionFlow<TestAction> = .empty
+    var waitForAuthentication: ActionFlow<TestAction> = .noop
+    var waitForAccountFetching: ActionFlow<TestAction> = .noop
     var authState: AuthState = .unauthenticated
     var preActions: [(Date, TestAction)] = []
     var postActions: [(Date, TestAction)] = []
@@ -190,14 +190,14 @@ class TestMiddleware: Middleware {
 
         if action.name == .login, !waitForAuthentication.actions.isEmpty {
             defer {
-                waitForAuthentication = .empty
+                waitForAuthentication = .noop
             }
             return .redirect(to: action.then(flow: waitForAuthentication))
         }
 
         if action.name == .fetchAccount, !waitForAccountFetching.actions.isEmpty {
             defer {
-                waitForAccountFetching = .empty
+                waitForAccountFetching = .noop
             }
             return .redirect(to: action.then(flow: waitForAccountFetching))
         }
