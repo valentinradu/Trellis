@@ -9,6 +9,18 @@
 import XCTest
 
 class State {}
+class TestDependency {}
+
+struct TestDependencyKey: DependencyKey {
+    static var value: TestDependency = .init()
+}
+
+extension Environment {
+    var testDependency: TestDependency {
+        get { self[TestDependencyKey.self] }
+        set { self[TestDependencyKey.self] = newValue }
+    }
+}
 
 /// To make things easier to follow, the tests are working with a set of toy actions that emulate an app that has authentication, both as a regular user and admin, a simple audio player available only to authenticated users and a set of admin-specific actions.
 indirect enum TestAction: Action, Hashable {
@@ -83,10 +95,13 @@ enum TestError: Error, Equatable {
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 class TestService: Reducer {
     var actions: [(Date, TestAction)] = []
+    var environment: Environment = .init()
 
-    func receive(_ action: TestAction) async throws -> ActionFlow<TestAction> {
+    func receive(_ action: TestAction,
+                 environment localEnvironment: Environment) async throws -> ActionFlow<TestAction> {
         try await Task.sleep(nanoseconds: UInt64(0.3 * Double(NSEC_PER_SEC)))
         actions.append((Date.now, action))
+        environment = localEnvironment
         return .empty
     }
 }

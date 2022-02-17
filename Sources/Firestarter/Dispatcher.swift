@@ -25,6 +25,7 @@ public class Dispatcher {
 
     private var _reducers: [AnyReducer] = []
     private var _middlewares: [AnyMiddleware] = []
+    private var _environment: Environment = .init()
     private var _cancellables: Set<AnyCancellable> = []
 
     /**
@@ -43,6 +44,10 @@ public class Dispatcher {
      */
     public func register<W: Reducer>(reducer: W) {
         _reducers.append(AnyReducer(reducer))
+    }
+
+    public func register<D>(dependency: D, for key: WritableKeyPath<Environment, D>) {
+        _environment[keyPath: key] = dependency
     }
 
     /**
@@ -225,7 +230,7 @@ private extension Dispatcher {
                     var reducerPubs: [AnyPublisher<Void, Error>] = []
                     for reducer in _reducers {
                         reducerPubs.append(
-                            reducer.receive(action)
+                            reducer.receive(action, environment: _environment)
                                 .handleEvents(receiveCompletion: { [self] result in
                                     switch result {
                                     case let .failure(error):

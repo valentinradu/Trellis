@@ -66,4 +66,12 @@ final class DispatcherTests: XCTestCase {
             XCTAssertEqual(error as? TestError, TestError.accessDenied)
         }
     }
+    
+    func testEnvironment() async throws {
+        let testDependency = TestDependency()
+        _dispatcher.register(dependency: testDependency,
+                             for: \.testDependency)
+        try await _dispatcher.publish(TestAction.resetPassword)
+        XCTAssertTrue(_service.environment.testDependency === testDependency)
+    }
 }
