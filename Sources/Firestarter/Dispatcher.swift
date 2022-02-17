@@ -27,6 +27,8 @@ public class Dispatcher {
     private var _middlewares: [AnyMiddleware] = []
     private var _environment: Environment = .init()
     private var _cancellables: Set<AnyCancellable> = []
+    
+    public init() {}
 
     /**
      Registers a new middleware.
