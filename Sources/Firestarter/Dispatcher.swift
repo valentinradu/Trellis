@@ -8,9 +8,9 @@
 import Combine
 
 /**
- The dispatcher propagates actions to workers.
+ The dispatcher propagates actions to reducers.
  Its main jobs are:
-    - to register workers
+    - to register reducers
     - to register middlewares
     - to publish actions
     - to handle redirections
@@ -23,7 +23,7 @@ public class Dispatcher {
     /// All the actions published since the dispatcher was initiated or reseted
     public private(set) var history: ActionFlow<AnyAction> = .empty
 
-    private var _workers: [AnyWorker] = []
+    private var _reducers: [AnyReducer] = []
     private var _middlewares: [AnyMiddleware] = []
     private var _cancellables: Set<AnyCancellable> = []
 
@@ -37,27 +37,27 @@ public class Dispatcher {
     }
 
     /**
-     Registers a new worker
-     - parameter worker: The worker instance to register
-     - seealso: Worker
+     Registers a new reducer
+     - parameter reducer: The reducer instance to register
+     - seealso: Reducer
      */
-    public func register<W: Worker>(worker: W) {
-        _workers.append(AnyWorker(worker))
+    public func register<W: Reducer>(reducer: W) {
+        _reducers.append(AnyReducer(reducer))
     }
 
     /**
-     Resets the dispatcher to its initial state, stopping any current action processing and optionally unregistering the workers, middleware and clearing the history.
+     Resets the dispatcher to its initial state, stopping any current action processing and optionally unregistering the reducers, middleware and clearing the history.
      */
     public func reset(history: Bool = false,
-                      workers: Bool = false,
+                      reducers: Bool = false,
                       middlewares: Bool = false)
     {
         _cancellables = []
         if history {
             self.history = .empty
         }
-        if workers {
-            _workers = []
+        if reducers {
+            _reducers = []
         }
         if middlewares {
             _middlewares = []
@@ -65,7 +65,7 @@ public class Dispatcher {
     }
 
     /**
-     Publishes an action and calls back a completion handler when the action has been processed by all the workers.
+     Publishes an action and calls back a completion handler when the action has been processed by all the reducers.
         - parameter action: The action
      */
     func publish<A: Action>(_ action: A,
@@ -89,7 +89,7 @@ public class Dispatcher {
     }
 
     /**
-     Publishes an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the workers. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed.
+     Publishes an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the reducers. If any of the reducers throws an error, the chain is interruped and the remaining actions are not processed.
         - parameter flow: The action flow
      */
     public func publish<A: Action>(_ flow: ActionFlow<A>,
@@ -113,7 +113,7 @@ public class Dispatcher {
     }
 
     /**
-     Publishes an action and returns a publisher that completes (or errors out) when all the workers finished processing the action.
+     Publishes an action and returns a publisher that completes (or errors out) when all the reducers finished processing the action.
         - parameter action: The action
      */
     public func publish<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
@@ -121,7 +121,7 @@ public class Dispatcher {
     }
 
     /**
-     Publishes an action flow (multiple actions chained one after the other) and returns a publisher that completes (or errors out) when all the workers finished processing the actions. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed anymore.
+     Publishes an action flow (multiple actions chained one after the other) and returns a publisher that completes (or errors out) when all the reducers finished processing the actions. If any of the reducers throws an error, the chain is interruped and the remaining actions are not processed anymore.
          - parameter flow: The action flow
      */
     public func publish<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
@@ -222,10 +222,10 @@ private extension Dispatcher {
                         }
                     }
 
-                    var workerPubs: [AnyPublisher<Void, Error>] = []
-                    for worker in _workers {
-                        workerPubs.append(
-                            worker.receive(action)
+                    var reducerPubs: [AnyPublisher<Void, Error>] = []
+                    for reducer in _reducers {
+                        reducerPubs.append(
+                            reducer.receive(action)
                                 .handleEvents(receiveCompletion: { [self] result in
                                     switch result {
                                     case let .failure(error):
@@ -244,7 +244,7 @@ private extension Dispatcher {
                         )
                     }
 
-                    return Publishers.MergeMany(workerPubs)
+                    return Publishers.MergeMany(reducerPubs)
                         .collect()
                         .map { _ in () }
                         .flatMap {

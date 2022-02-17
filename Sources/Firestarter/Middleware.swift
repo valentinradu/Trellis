@@ -9,23 +9,23 @@ import Combine
 
 /**
  The middleware is used for:
- 1) Blocking, postponing or redirecting an action *before* sending it to the workers
+ 1) Blocking, postponing or redirecting an action *before* sending it to the reducers
  2) Hadling all errors in one place
- 3) Take additional steps, like, logging or asserting, after all the workers finished processing an action
+ 3) Take additional steps, like, logging or asserting, after all the reducers finished processing an action
  - remark: When using multiple middlewares, if any attempts to `.redirect`, the subsequent ones are not called. Since middleware execution order is not guaranteed, it's best if you only redirect or defer one kind of action per middleware.
  */
 public protocol Middleware {
     associatedtype A: Action
     /**
-     Called before sending the action to all workers. It can be used to terminate the action, redirect it to other action or postpone it.
+     Called before sending the action to all reducers. It can be used to terminate the action, redirect it to other action or postpone it.
      */
     func pre(action: A) throws -> Rewrite<A>
     /**
-     Called after all the workers finished processing the action.
+     Called after all the reducers finished processing the action.
      */
     func post(action: A)
     /**
-     Called when a worker failed to process the action.
+     Called when a reducer failed to process the action.
      */
     func failure(action: A, error: Error)
 }
@@ -96,6 +96,6 @@ public extension Middleware {
 public enum Rewrite<A: Action> {
     /// No action taken, the default behaviour of any middleware
     case none
-    /// Replace the current action with another action before it reaches any worker
+    /// Replace the current action with another action before it reaches any reducer
     case redirect(to: ActionFlow<A>)
 }

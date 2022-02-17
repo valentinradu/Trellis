@@ -21,7 +21,7 @@ final class MiddlewareTests: XCTestCase {
         _service = TestService()
         _middleware = TestMiddleware(dispatcher: _dispatcher)
 
-        _dispatcher.register(worker: _service)
+        _dispatcher.register(reducer: _service)
         _dispatcher.register(middleware: _middleware)
     }
 
@@ -29,13 +29,13 @@ final class MiddlewareTests: XCTestCase {
         _middleware.authState = .authenticated
         try await _dispatcher.publish(TestAction.play)
 
-        // Workers and middleware got the action
+        // Reducers and middleware got the action
         XCTAssertEqual(_middleware.preActions.map(\.1), [.play])
         XCTAssertEqual(_middleware.postActions.map(\.1), [.play])
         XCTAssertEqual(_service.actions.map(\.1), [.play])
         XCTAssertEqual(_middleware.failures.map(\.1), [])
 
-        // Workers and middleware got the action in the right order
+        // Reducers and middleware got the action in the right order
         XCTAssertLessThan(_middleware.preActions[0].0, _service.actions[0].0)
         XCTAssertLessThan(_service.actions[0].0, _middleware.postActions[0].0)
     }
@@ -46,7 +46,7 @@ final class MiddlewareTests: XCTestCase {
             try await _dispatcher.publish(TestAction.closeAccount)
             XCTFail()
         } catch {
-            // Workers and middleware got the action only in the right stage
+            // Reducers and middleware got the action only in the right stage
             XCTAssertEqual(_middleware.preActions.map(\.1), [.closeAccount])
             XCTAssertEqual(_middleware.postActions.map(\.1), [])
             XCTAssertEqual(_service.actions.map(\.1), [])

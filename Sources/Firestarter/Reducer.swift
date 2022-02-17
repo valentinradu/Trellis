@@ -8,9 +8,9 @@
 import Combine
 
 /**
- Workers are specialized in processing tasks when receiving specific actions. For example, you could have a worker handling authentication, other handling the server API, other persistence, and so on. The worker usually can access and modify the state of the app.
+ Reducers are specialized in processing tasks when receiving specific actions. For example, you could have a reducer handling authentication, other handling the server API, other persistence, and so on. The reducer usually can access and modify the state of the app.
  */
-public protocol Worker {
+public protocol Reducer {
     associatedtype A: Action
     /**
      The `receive(action:)` method is called by the dispatcher when an action needs to be processed.
@@ -25,7 +25,7 @@ public protocol Worker {
     func receive(_ action: A) async throws -> ActionFlow<A>
 }
 
-public extension Worker {
+public extension Reducer {
     func receive(_ action: A) -> AnyPublisher<ActionFlow<A>, Error> {
         if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
             let pub: PassthroughSubject<ActionFlow<A>, Error> = PassthroughSubject()
@@ -55,13 +55,13 @@ public extension Worker {
 }
 
 /**
- Worker type erasure
+ Reducer type erasure
  */
-public struct AnyWorker: Worker {
+public struct AnyReducer: Reducer {
     public typealias A = AnyAction
     private let receiveClosure: (AnyAction) -> AnyPublisher<ActionFlow<A>, Error>
 
-    public init<W: Worker>(_ source: W) {
+    public init<W: Reducer>(_ source: W) {
         receiveClosure = {
             if let action = $0.wrappedValue as? W.A {
                 return source.receive(action)

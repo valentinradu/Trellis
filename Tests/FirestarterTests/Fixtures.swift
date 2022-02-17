@@ -81,7 +81,7 @@ enum TestError: Error, Equatable {
 }
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-class TestService: Worker {
+class TestService: Reducer {
     var actions: [(Date, TestAction)] = []
 
     func receive(_ action: TestAction) async throws -> ActionFlow<TestAction> {

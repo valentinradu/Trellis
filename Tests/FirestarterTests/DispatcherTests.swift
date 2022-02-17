@@ -19,13 +19,13 @@ final class DispatcherTests: XCTestCase {
         _service = TestService()
         _middleware = TestMiddleware(dispatcher: _dispatcher)
 
-        _dispatcher.register(worker: _service)
+        _dispatcher.register(reducer: _service)
         _dispatcher.register(middleware: _middleware)
     }
 
     func testRegister() async throws {
         let otherService = TestService()
-        _dispatcher.register(worker: otherService)
+        _dispatcher.register(reducer: otherService)
         try await _dispatcher.publish(TestAction.resetPassword)
 
         XCTAssertEqual(otherService.actions.map(\.1), [.resetPassword])
