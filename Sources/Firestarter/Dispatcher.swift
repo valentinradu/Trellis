@@ -225,7 +225,7 @@ private extension Dispatcher {
                     var workerPubs: [AnyPublisher<Void, Error>] = []
                     for worker in _workers {
                         workerPubs.append(
-                            worker.execute(action)
+                            worker.receive(action)
                                 .handleEvents(receiveCompletion: { [self] result in
                                     switch result {
                                     case let .failure(error):

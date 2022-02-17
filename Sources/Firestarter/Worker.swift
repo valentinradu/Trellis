@@ -13,25 +13,25 @@ import Combine
 public protocol Worker {
     associatedtype A: Action
     /**
-     The `execute(action:)` method is called by the dispatcher when an action needs to be processed.
-        - returns: A publisher that returns an action flow executed right after the current action
+     The `receive(action:)` method is called by the dispatcher when an action needs to be processed.
+        - returns: A publisher that returns an action flow received right after the current action
      */
-    func execute(_ action: A) -> AnyPublisher<ActionFlow<A>, Error>
+    func receive(_ action: A) -> AnyPublisher<ActionFlow<A>, Error>
     /**
-     The `execute(action:)` method is called by the dispatcher when an action needs to be processed and executed
-        - returns: An action flow executed right after the current action
+     The `receive(action:)` method is called by the dispatcher when an action needs to be processed and received
+        - returns: An action flow received right after the current action
      */
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    func execute(_ action: A) async throws -> ActionFlow<A>
+    func receive(_ action: A) async throws -> ActionFlow<A>
 }
 
 public extension Worker {
-    func execute(_ action: A) -> AnyPublisher<ActionFlow<A>, Error> {
+    func receive(_ action: A) -> AnyPublisher<ActionFlow<A>, Error> {
         if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
             let pub: PassthroughSubject<ActionFlow<A>, Error> = PassthroughSubject()
             Task {
                 do {
-                    let others = try await execute(action)
+                    let others = try await receive(action)
                     pub.send(others)
                     pub.send(completion: .finished)
                 } catch {
@@ -49,7 +49,7 @@ public extension Worker {
     }
 
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    func execute(_: A) async throws -> ActionFlow<AnyAction> {
+    func receive(_: A) async throws -> ActionFlow<AnyAction> {
         return .empty
     }
 }
@@ -59,12 +59,12 @@ public extension Worker {
  */
 public struct AnyWorker: Worker {
     public typealias A = AnyAction
-    private let executeClosure: (AnyAction) -> AnyPublisher<ActionFlow<A>, Error>
+    private let receiveClosure: (AnyAction) -> AnyPublisher<ActionFlow<A>, Error>
 
     public init<W: Worker>(_ source: W) {
-        executeClosure = {
+        receiveClosure = {
             if let action = $0.wrappedValue as? W.A {
-                return source.execute(action)
+                return source.receive(action)
                     .map {
                         ActionFlow(actions: $0.actions.map { AnyAction($0) })
                     }
@@ -77,7 +77,7 @@ public struct AnyWorker: Worker {
         }
     }
 
-    public func execute(_ action: A) -> AnyPublisher<ActionFlow<A>, Error> {
-        executeClosure(action)
+    public func receive(_ action: A) -> AnyPublisher<ActionFlow<A>, Error> {
+        receiveClosure(action)
     }
 }

@@ -75,12 +75,12 @@ func pre(action: UserAction) throws -> Rewrite<UserAction> {
 ### Workers
 
 The workers (sometimes called services) contain most of the business logic in a Firestarter-architectured app. Each worker should handle a specific set of tasks that go together well. Like authentication, profile, prefetching, persistance, various (article, users, likes, etc) repositories and so on.
-Workers will ignore most of the actions they receive in `execute(action:)` handling only relevant ones. `execute(action:)` is async in nature (works with legacy callbacks, `Combine` and/or `await/async`) allowing you to offload work to other threads, make network requests or call other async mathods.
+Workers will ignore most of the actions they receive in `receive(action:)` handling only relevant ones. `receive(action:)` is async in nature (works with legacy callbacks, `Combine` and/or `await/async`) allowing you to offload work to other threads, make network requests or call other async mathods.
 
 ```swift
 /// A authentication service
 class AuthService: Worker {
-    func execute(_ action: TestAction) async throws -> ActionFlow<TestAction> {
+    func receive(_ action: TestAction) async throws -> ActionFlow<TestAction> {
         switch action {
         case let .login(username, password):
             // make the server login call, update the app state etc
@@ -177,7 +177,7 @@ enum UserAction: Action {
 
 ## Multi-threading
 
-Firestarter expects all its methods to be called on the main thread. However, since the `execute(action:)` method of the worker is async, you can always offload the work to multiple threads as long as you return to the main thread before returning the result (e.g. using `receive(on:)` in `Combine`)
+Firestarter expects all its methods to be called on the main thread. However, since the `receive(action:)` method of the worker is async, you can always offload the work to multiple threads as long as you return to the main thread before returning the result (e.g. using `receive(on:)` in `Combine`)
 
 ## SwiftUI example
 
@@ -218,7 +218,7 @@ class Middleware: Middleware {
 // right after the current, or `.empty`. 
 class AuthService: Worker {
     let state: AppState
-    func execute(_ action: AppAction) async throws -> ActionFlow<AppAction> {
+    func receive(_ action: AppAction) async throws -> ActionFlow<AppAction> {
         switch action {
         case let .login(username, password):
             ...
