@@ -30,11 +30,11 @@ Firestarter is a zero-dependency architectural framework that helps you write cl
 
 ## Core Concepts
 
-There are 4 actors that work together in Firestarter: `Action`s, `Middleware`s, `Worker`s and the `Dispatcher`. The first 3 are protocols that can be adopted by any `struct`, `class` and even `enum` for actions. The dispatcher is the entry point, the entity that fires actions and triggers the `dispatcher -> pre (middleware) -> worker -> post (middleware)` processing flow.
+There are 4 actors that work together in Firestarter: `Action`s, `Middleware`s, `Worker`s and the `Dispatcher`. The first 3 are protocols that can be adopted by any `struct`, `class` and even `enum` for actions. The dispatcher is the entry point, the entity that publishes actions and triggers the `dispatcher -> pre (middleware) -> worker -> post (middleware)` processing flow.
 
 ### Actions
 
-Actions drive all the other actors. They model all the possible events that your application can handle. Also, once fired, most of them will lead to a state mutation inside the workers.
+Actions drive all the other actors. They model all the possible events that your application can handle. Also, once published, most of them will lead to a state mutation inside the workers.
 
  ```swift
  /// An example of 3 actions used to authenticate a user
@@ -96,13 +96,13 @@ class AuthService: Worker {
 
 ### The Dispatcher
 
-The dispatcher's main purpose is to fire actions (`fire(action:)`), starting the process that will make all the other actors react. Beyond that, it also initially registers the workers and middlewares.
+The dispatcher's main purpose is to publish actions (`publish(action:)`), starting the process that will make all the other actors react. Beyond that, it also initially registers the workers and middlewares.
 
 ## Common patterns
 
 ### Blocking an action
 
-There is no built-in way to block an action, one of the rules Firestarter follows is: once an action is fired, it will always either complete or fail. This is keeping everything consistent and predictable and its very helpful for debugging. However, it's trivial to add a `.noop` action that gets ignored by all your workers. Redirecting to this `.noop` action in the middleware will behave like you're blocking current the action, however, it also keeps things predictable and consistent as described above. 
+There is no built-in way to block an action, one of the rules Firestarter follows is: once an action is published, it will always either complete or fail. This is keeping everything consistent and predictable and its very helpful for debugging. However, it's trivial to add a `.noop` action that gets ignored by all your workers. Redirecting to this `.noop` action in the middleware will behave like you're blocking current the action, however, it also keeps things predictable and consistent as described above. 
 
 ```swift
 /// Blocking actions when the user is not authenticated
@@ -116,7 +116,7 @@ func pre(action: UserAction) throws -> Rewrite<UserAction> {
 
 ### Postponing an action
 
-There is no built-in way to postpone an action, however, just like with blocking actions, one can have a `.postpone(action:)` action that stacks actions in an `ActionFlow` until a certain other action is fired.
+There is no built-in way to postpone an action, however, just like with blocking actions, one can have a `.postpone(action:)` action that stacks actions in an `ActionFlow` until a certain other action is published.
 
 ```swift
 /// Postponing an action until the user is authenticated

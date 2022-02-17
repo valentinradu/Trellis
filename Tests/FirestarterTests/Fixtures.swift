@@ -129,7 +129,7 @@ class TestMiddleware: Middleware {
 
     func pre(action: TestAction) throws -> Rewrite<TestAction> {
         preActions.append((Date.now, action))
-        // If account is unauthenticated but the action requires authentication, look behind, if login action was already fired, fire your action, if not, wait until it is and then fire your action
+        // If account is unauthenticated but the action requires authentication, look behind, if login action was already published, publish your action, if not, wait until it is and then publish your action
         if authState == .unauthenticated,
            authenticatedActionsNames.contains(action.name)
         {
@@ -138,8 +138,8 @@ class TestMiddleware: Middleware {
             return .redirect(to: .single(action: redirection))
         }
 
-        // If we have to register the device id, check if the account is unauthenticated, if so, look behind in history and fire `.registerNewDevice` either right away, if `.login` was already fired, or right after `.login` fires.
-        // Alternatively, if the account is already authenticated, wait for `.fetchAccount` and fire right after it
+        // If we have to register the device id, check if the account is unauthenticated, if so, look behind in history and publish `.registerNewDevice` either right away, if `.login` was already published, or right after `.login` get published.
+        // Alternatively, if the account is already authenticated, wait for `.fetchAccount` and publish right after it
         if action.name == .registerNewDevice {
             if authState == .unauthenticated {
                 let redirection: TestAction = .postpone(action,
@@ -160,7 +160,7 @@ class TestMiddleware: Middleware {
             }
         }
 
-        // If the account is not authenticated but we try to fire an action that require authentication, navigate the user to the login page (we'd normally also clear the  state here)
+        // If the account is not authenticated but we try to publish an action that require authentication, navigate the user to the login page (we'd normally also clear the  state here)
         if authState == .unauthenticated,
            authenticatedActionsNames.contains(action.name)
         {

@@ -26,23 +26,23 @@ final class DispatcherTests: XCTestCase {
     func testRegister() async throws {
         let otherService = TestService()
         _dispatcher.register(worker: otherService)
-        try await _dispatcher.fire(TestAction.resetPassword)
+        try await _dispatcher.publish(TestAction.resetPassword)
 
         XCTAssertEqual(otherService.actions.map(\.1), [.resetPassword])
     }
 
     func testPurgeHistory() async throws {
         _middleware.authState = .authenticated
-        try await _dispatcher.fire(
+        try await _dispatcher.publish(
             TestAction
                 .login(email: "", password: "")
                 .then(other: .fetchAccount)
         )
 
         _dispatcher.reset(history: true)
-        try await _dispatcher.fire(TestAction.registerNewDevice(id: ""))
+        try await _dispatcher.publish(TestAction.registerNewDevice(id: ""))
 
-        // Even if all dependencies should be solved, `.registerNewDevice` won't fire since we purged the history and would require an additional `.fetchAccount` to do so
+        // Even if all dependencies should be solved, `.registerNewDevice` won't publish since we purged the history and would require an additional `.fetchAccount` to do so
         XCTAssertEqual(
             _service.actions.map(\.1.name),
             [
@@ -53,14 +53,14 @@ final class DispatcherTests: XCTestCase {
         )
     }
 
-    func testFireSuccess() async throws {
-        try await _dispatcher.fire(TestAction.resetPassword)
+    func testPublishSuccess() async throws {
+        try await _dispatcher.publish(TestAction.resetPassword)
         XCTAssertEqual(_service.actions.map(\.1), [.resetPassword])
     }
 
-    func testFireError() async throws {
+    func testPublishError() async throws {
         do {
-            try await _dispatcher.fire(TestAction.closeAccount)
+            try await _dispatcher.publish(TestAction.closeAccount)
             XCTFail()
         } catch {
             XCTAssertEqual(error as? TestError, TestError.accessDenied)

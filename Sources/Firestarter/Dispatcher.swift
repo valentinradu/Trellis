@@ -12,15 +12,15 @@ import Combine
  Its main jobs are:
     - to register workers
     - to register middlewares
-    - to fire actions
+    - to publish actions
     - to handle redirections
 
- - note: All the async `fire` operations also have `Combine`, `async/await` and legacy callback closures support.
+ - note: All the async `publish` operations also have `Combine`, `async/await` and legacy callback closures support.
  */
 public class Dispatcher {
     public typealias Completion = (Result<Void, Error>) -> Void
 
-    /// All the actions fired since the dispatcher was initiated or reseted
+    /// All the actions published since the dispatcher was initiated or reseted
     public private(set) var history: ActionFlow<AnyAction> = .empty
 
     private var _workers: [AnyWorker] = []
@@ -65,13 +65,13 @@ public class Dispatcher {
     }
 
     /**
-     Fires an action and calls back a completion handler when the action has been processed by all the workers.
+     Publishes an action and calls back a completion handler when the action has been processed by all the workers.
         - parameter action: The action
      */
-    func fire<A: Action>(_ action: A,
-                         completion: Completion?)
+    func publish<A: Action>(_ action: A,
+                            completion: Completion?)
     {
-        _fire(action)
+        _publish(action)
             .sink(
                 receiveCompletion: { result in
                     switch result {
@@ -89,13 +89,13 @@ public class Dispatcher {
     }
 
     /**
-     Fires an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the workers. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed.
+     Publishes an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the workers. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed.
         - parameter flow: The action flow
      */
-    public func fire<A: Action>(_ flow: ActionFlow<A>,
-                                completion: Completion?)
+    public func publish<A: Action>(_ flow: ActionFlow<A>,
+                                   completion: Completion?)
     {
-        _fire(flow)
+        _publish(flow)
             .sink(
                 receiveCompletion: { result in
                     switch result {
@@ -113,46 +113,46 @@ public class Dispatcher {
     }
 
     /**
-     Fires an action and returns a publisher that completes (or errors out) when all the workers finished processing the action.
+     Publishes an action and returns a publisher that completes (or errors out) when all the workers finished processing the action.
         - parameter action: The action
      */
-    public func fire<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
-        _fire(action)
+    public func publish<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
+        _publish(action)
     }
 
     /**
-      Fires an action flow (multiple actions chained one after the other) and returns a publisher that completes (or errors out) when all the workers finished processing the actions. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed anymore.
+     Publishes an action flow (multiple actions chained one after the other) and returns a publisher that completes (or errors out) when all the workers finished processing the actions. If any of the workers throws an error, the chain is interruped and the remaining actions are not processed anymore.
          - parameter flow: The action flow
      */
-    public func fire<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
-        _fire(flow)
+    public func publish<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
+        _publish(flow)
     }
 
     /**
-     Similar to the other `fire(action:)` methods, except completion is ignored.
+     Similar to the other `publish(action:)` methods, except completion is ignored.
          - parameter action: The action
-         - seealso: fire(action:)
+         - seealso: publish(action:)
      */
-    public func fireAndForget<A: Action>(_ action: A) {
-        fire(action, completion: nil)
+    public func publishAndForget<A: Action>(_ action: A) {
+        publish(action, completion: nil)
     }
 
     /**
-     Similar to the other `fire(flow:)` methods, except completion is ignored.
+     Similar to the other `publish(flow:)` methods, except completion is ignored.
         - parameter flow: The action flow
-        - seealso: fire(flow:)
+        - seealso: publish(flow:)
      */
-    public func fireAndForget<A: Action>(_ flow: ActionFlow<A>) {
-        fire(flow, completion: nil)
+    public func publishAndForget<A: Action>(_ flow: ActionFlow<A>) {
+        publish(flow, completion: nil)
     }
 
     /**
-     Fires an action using `async/await`
+     Publish an action using `async/await`
      */
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    public func fire<A: Action>(_ action: A) async throws {
+    public func publish<A: Action>(_ action: A) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
-            fire(action) {
+            publish(action) {
                 switch $0 {
                 case .success:
                     continuation.resume(returning: ())
@@ -164,12 +164,12 @@ public class Dispatcher {
     }
 
     /**
-     Fires an action flow using `async/await`
+     Publish an action flow using `async/await`
      */
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    public func fire<A: Action>(_ flow: ActionFlow<A>) async throws {
+    public func publish<A: Action>(_ flow: ActionFlow<A>) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
-            fire(flow) {
+            publish(flow) {
                 switch $0 {
                 case .success:
                     continuation.resume(returning: ())
@@ -182,11 +182,11 @@ public class Dispatcher {
 }
 
 private extension Dispatcher {
-    func _fire<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
-        _fire(.init(actions: [action]))
+    func _publish<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
+        _publish(.init(actions: [action]))
     }
 
-    func _fire<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
+    func _publish<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
         var pub = Just(())
             .setFailureType(to: Error.self)
             .eraseToAnyPublisher()
@@ -207,7 +207,7 @@ private extension Dispatcher {
                             switch rewrite {
                             case let .redirect(otherFlow):
                                 let actions = otherFlow.actions + stack
-                                return _fire(.init(actions: actions))
+                                return _publish(.init(actions: actions))
                             case .none:
                                 continue
                             }
@@ -237,7 +237,7 @@ private extension Dispatcher {
                                     }
                                 })
                                 .flatMap {
-                                    _fire($0)
+                                    _publish($0)
                                 }
                                 .share()
                                 .eraseToAnyPublisher()
