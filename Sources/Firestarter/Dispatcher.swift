@@ -53,10 +53,6 @@ import Combine
         _services.append(AnyService(service))
     }
 
-    public func register<D>(dependency: D, for key: WritableKeyPath<DependencyRepository, D>) {
-        DependencyRepository.main[keyPath: key] = dependency
-    }
-
     /**
      Resets the dispatcher to its initial state, stopping any current action processing and optionally unregistering the services, middleware and clearing the history.
      */

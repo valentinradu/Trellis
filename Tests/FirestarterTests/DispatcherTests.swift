@@ -71,8 +71,7 @@ final class DispatcherTests: XCTestCase {
     
     func testEnvironment() async throws {
         let testDependency = TestDependency()
-        _dispatcher.register(dependency: testDependency,
-                             for: \.testDependency)
+        DependencyRepository.main.testDependency = testDependency
         try await _dispatcher.send(TestAction.resetPassword)
         XCTAssertTrue(_service.testDependency === testDependency)
     }

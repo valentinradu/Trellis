@@ -13,7 +13,7 @@ public protocol DependencyKey {
 }
 
 public struct DependencyRepository {
-    internal static var main: DependencyRepository = .init()
+    public static var main: DependencyRepository = .init()
 
     private init() {}
 
