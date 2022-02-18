@@ -11,23 +11,23 @@ import XCTest
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class DispatcherTests: XCTestCase {
     @Dispatcher private var _dispatcher
-    private var _service: TestService!
+    private var _service: TestViewModel!
     private var _middleware: TestMiddleware!
 
     override func setUp() {
-        _service = TestService()
+        _service = TestViewModel()
         _middleware = TestMiddleware()
 
         _dispatcher.reset(history: true,
-                          reducers: true,
+                          services: true,
                           middlewares: true)
-        _dispatcher.register(reducer: _service)
+        _dispatcher.register(service: _service)
         _dispatcher.register(middleware: _middleware)
     }
 
     func testRegister() async throws {
-        let otherService = TestService()
-        _dispatcher.register(reducer: otherService)
+        let otherService = TestViewModel()
+        _dispatcher.register(service: otherService)
         try await _dispatcher.send(TestAction.resetPassword)
 
         XCTAssertEqual(otherService.actions.map(\.1), [.resetPassword])
@@ -74,6 +74,6 @@ final class DispatcherTests: XCTestCase {
         _dispatcher.register(dependency: testDependency,
                              for: \.testDependency)
         try await _dispatcher.send(TestAction.resetPassword)
-        XCTAssertTrue(_service.environment.testDependency === testDependency)
+        XCTAssertTrue(_service.testDependency === testDependency)
     }
 }

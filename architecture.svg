@@ -56,8 +56,8 @@
         <text id="Dispatcher" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#ABABAB">
             <tspan x="174.356445" y="153">Dispatcher</tspan>
         </text>
-        <text id="Reducers" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#ABABAB">
-            <tspan x="361.499512" y="153">Reducers</tspan>
+        <text id="Services" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#ABABAB">
+            <tspan x="361.499512" y="153">Services</tspan>
         </text>
         <text id="State" font-family="Menlo-Bold, Menlo" font-size="14" font-weight="bold" fill="#ABABAB">
             <tspan x="544.428223" y="153">State</tspan>

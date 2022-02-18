@@ -8,7 +8,7 @@
 import Foundation
 
 /**
- Actions are atomic units that drive all the other actors: the dispatcher sends them while the reducers receive action-associated tasks as a result. Middleware is called before and after each action is processed and can be used to redirect the action or for handling all failures in one place.
+ Actions are atomic units that drive all the other actors: the dispatcher sends them while the services receive action-associated tasks as a result. Middleware is called before and after each action is processed and can be used to redirect the action or for handling all failures in one place.
  Any class, struct or enum can implement the `Action` protocol. However, most of the time we define actions in an enum:
  ```
  enum GatekeeperAction: Action, Equatable {
@@ -47,7 +47,7 @@ public extension Action {
 }
 
 /**
- A chain of actions sent to reducers one after the other
+ A chain of actions sent to services one after the other
  */
 public struct ActionFlow<A: Action> {
     public static func single(action: A) -> ActionFlow<A> {

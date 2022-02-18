@@ -11,14 +11,14 @@ import XCTest
 class State {}
 class TestDependency {}
 
-struct TestDependencyKey: DependencyKey {
+struct TestServiceKey: DependencyKey {
     static var value: TestDependency = .init()
 }
 
-extension Environment {
+extension DependencyRepository {
     var testDependency: TestDependency {
-        get { self[TestDependencyKey.self] }
-        set { self[TestDependencyKey.self] = newValue }
+        get { self[TestServiceKey.self] }
+        set { self[TestServiceKey.self] = newValue }
     }
 }
 
@@ -93,15 +93,13 @@ enum TestError: Error, Equatable {
 }
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-class TestService: Reducer {
+class TestViewModel: Service {
+    @Dependency(\.testDependency) var testDependency
     var actions: [(Date, TestAction)] = []
-    var environment: Environment = .init()
 
-    func receive(_ action: TestAction,
-                 environment localEnvironment: Environment) async throws -> ActionFlow<TestAction> {
+    func receive(_ action: TestAction) async throws -> ActionFlow<TestAction> {
         try await Task.sleep(nanoseconds: UInt64(0.3 * Double(NSEC_PER_SEC)))
         actions.append((Date.now, action))
-        environment = localEnvironment
         return .noop
     }
 }

@@ -7,9 +7,9 @@
 
 import Combine
 /**
- The dispatcher propagates actions to reducers.
+ The dispatcher propagates actions to services.
  Its main jobs are:
-    - to register reducers
+    - to register services
     - to register middlewares
     - to send actions
     - to handle redirections
@@ -24,9 +24,8 @@ import Combine
     /// All the actions sent since the dispatcher was initiated or reseted
     public private(set) var history: ActionFlow<AnyAction> = .noop
 
-    private var _reducers: [AnyReducer] = []
+    private var _services: [AnyService] = []
     private var _middlewares: [AnyMiddleware] = []
-    private var _environment: Environment = .init()
     private var _cancellables: Set<AnyCancellable> = []
 
     public init() {}
@@ -46,31 +45,31 @@ import Combine
     }
 
     /**
-     Registers a new reducer
-     - parameter reducer: The reducer instance to register
-     - seealso: Reducer
+     Registers a new service
+     - parameter service: The service instance to register
+     - seealso: Service
      */
-    public func register<W: Reducer>(reducer: W) {
-        _reducers.append(AnyReducer(reducer))
+    public func register<W: Service>(service: W) {
+        _services.append(AnyService(service))
     }
 
-    public func register<D>(dependency: D, for key: WritableKeyPath<Environment, D>) {
-        _environment[keyPath: key] = dependency
+    public func register<D>(dependency: D, for key: WritableKeyPath<DependencyRepository, D>) {
+        DependencyRepository.main[keyPath: key] = dependency
     }
 
     /**
-     Resets the dispatcher to its initial state, stopping any current action processing and optionally unregistering the reducers, middleware and clearing the history.
+     Resets the dispatcher to its initial state, stopping any current action processing and optionally unregistering the services, middleware and clearing the history.
      */
     public func reset(history: Bool = false,
-                      reducers: Bool = false,
+                      services: Bool = false,
                       middlewares: Bool = false)
     {
         _cancellables = []
         if history {
             self.history = .noop
         }
-        if reducers {
-            _reducers = []
+        if services {
+            _services = []
         }
         if middlewares {
             _middlewares = []
@@ -78,7 +77,7 @@ import Combine
     }
 
     /**
-     Sends an action and calls back a completion handler when the action has been processed by all the reducers.
+     Sends an action and calls back a completion handler when the action has been processed by all the services.
         - parameter action: The action
      */
     func send<A: Action>(_ action: A,
@@ -102,7 +101,7 @@ import Combine
     }
 
     /**
-     Sends an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the reducers. If any of the reducers throws an error, the chain is interruped and the remaining actions are not processed.
+     Sends an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the services. If any of the services throws an error, the chain is interruped and the remaining actions are not processed.
         - parameter flow: The action flow
      */
     public func send<A: Action>(_ flow: ActionFlow<A>,
@@ -126,7 +125,7 @@ import Combine
     }
 
     /**
-     Sends an action and returns a publisher that completes (or errors out) when all the reducers finished processing the action.
+     Sends an action and returns a publisher that completes (or errors out) when all the services finished processing the action.
         - parameter action: The action
      */
     public func sendPublisher<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
@@ -134,7 +133,7 @@ import Combine
     }
 
     /**
-     Sends an action flow (multiple actions chained one after the other) and returns a publisher that completes (or errors out) when all the reducers finished processing the actions. If any of the reducers throws an error, the chain is interruped and the remaining actions are not processed anymore.
+     Sends an action flow (multiple actions chained one after the other) and returns a publisher that completes (or errors out) when all the services finished processing the actions. If any of the services throws an error, the chain is interruped and the remaining actions are not processed anymore.
          - parameter flow: The action flow
      */
     public func sendPublisher<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
@@ -235,10 +234,10 @@ private extension Dispatcher {
                         }
                     }
 
-                    var reducerPubs: [AnyPublisher<Void, Error>] = []
-                    for reducer in _reducers {
-                        reducerPubs.append(
-                            reducer.receive(action, environment: _environment)
+                    var servicePubs: [AnyPublisher<Void, Error>] = []
+                    for service in _services {
+                        servicePubs.append(
+                            service.receive(action)
                                 .handleEvents(receiveCompletion: { [self] result in
                                     switch result {
                                     case let .failure(error):
@@ -257,7 +256,7 @@ private extension Dispatcher {
                         )
                     }
 
-                    return Publishers.MergeMany(reducerPubs)
+                    return Publishers.MergeMany(servicePubs)
                         .collect()
                         .map { _ in () }
                         .flatMap {

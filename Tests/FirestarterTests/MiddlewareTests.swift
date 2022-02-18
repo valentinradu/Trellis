@@ -11,17 +11,17 @@ import XCTest
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class MiddlewareTests: XCTestCase {
     @Dispatcher private var _dispatcher
-    private var _service: TestService!
+    private var _service: TestViewModel!
     private var _middleware: TestMiddleware!
 
     override func setUp() {
-        _service = TestService()
+        _service = TestViewModel()
         _middleware = TestMiddleware()
 
         _dispatcher.reset(history: true,
-                          reducers: true,
+                          services: true,
                           middlewares: true)
-        _dispatcher.register(reducer: _service)
+        _dispatcher.register(service: _service)
         _dispatcher.register(middleware: _middleware)
     }
 
@@ -29,13 +29,13 @@ final class MiddlewareTests: XCTestCase {
         _middleware.authState = .authenticated
         try await _dispatcher.send(TestAction.play)
 
-        // Reducers and middleware got the action
+        // Services and middleware got the action
         XCTAssertEqual(_middleware.preActions.map(\.1), [.play])
         XCTAssertEqual(_middleware.postActions.map(\.1), [.play])
         XCTAssertEqual(_service.actions.map(\.1), [.play])
         XCTAssertEqual(_middleware.failures.map(\.1), [])
 
-        // Reducers and middleware got the action in the right order
+        // Services and middleware got the action in the right order
         XCTAssertLessThan(_middleware.preActions[0].0, _service.actions[0].0)
         XCTAssertLessThan(_service.actions[0].0, _middleware.postActions[0].0)
     }
@@ -46,7 +46,7 @@ final class MiddlewareTests: XCTestCase {
             try await _dispatcher.send(TestAction.closeAccount)
             XCTFail()
         } catch {
-            // Reducers and middleware got the action only in the right stage
+            // Services and middleware got the action only in the right stage
             XCTAssertEqual(_middleware.preActions.map(\.1), [.closeAccount])
             XCTAssertEqual(_middleware.postActions.map(\.1), [])
             XCTAssertEqual(_service.actions.map(\.1), [])
