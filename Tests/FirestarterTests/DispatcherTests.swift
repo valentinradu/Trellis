@@ -10,7 +10,7 @@ import XCTest
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class DispatcherTests: XCTestCase {
-    @Dispatcher private var _dispatcher
+    @Dependency(\.dispatcher) private var _dispatcher
     private var _service: TestViewModel!
     private var _middleware: TestMiddleware!
 

@@ -16,7 +16,7 @@ import Combine
 
  - note: All the async `send` operations also have `Combine`, `async/await` and legacy callback closures support.
  */
-@propertyWrapper public class Dispatcher {
+public class Dispatcher {
     static let main: Dispatcher = .init()
 
     public typealias Completion = (Result<Void, Error>) -> Void
@@ -29,11 +29,6 @@ import Combine
     private var _cancellables: Set<AnyCancellable> = []
 
     public init() {}
-    
-    public var wrappedValue: Dispatcher {
-        get { Dispatcher.main }
-        set {}
-    }
 
     /**
      Registers a new middleware.
@@ -274,5 +269,16 @@ private extension Dispatcher {
         }
 
         return pub
+    }
+}
+
+private struct DispatcherKey: DependencyKey {
+    static var value: Dispatcher = .main
+}
+
+public extension DependencyRepository {
+    var dispatcher: Dispatcher {
+        get { self[DispatcherKey.self] }
+        set { self[DispatcherKey.self] = newValue }
     }
 }

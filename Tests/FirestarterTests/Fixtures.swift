@@ -106,7 +106,7 @@ class TestViewModel: Service {
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 class TestMiddleware: Middleware {
-    @Dispatcher private var _dispatcher
+    @Dependency(\.dispatcher) private var _dispatcher
 
     enum AuthState {
         case unauthenticated
