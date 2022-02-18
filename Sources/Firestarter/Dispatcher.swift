@@ -6,29 +6,35 @@
 //
 
 import Combine
-
 /**
  The dispatcher propagates actions to reducers.
  Its main jobs are:
     - to register reducers
     - to register middlewares
-    - to publish actions
+    - to send actions
     - to handle redirections
 
- - note: All the async `publish` operations also have `Combine`, `async/await` and legacy callback closures support.
+ - note: All the async `send` operations also have `Combine`, `async/await` and legacy callback closures support.
  */
-public class Dispatcher {
+@propertyWrapper public class Dispatcher {
+    static let main: Dispatcher = .init()
+
     public typealias Completion = (Result<Void, Error>) -> Void
 
-    /// All the actions published since the dispatcher was initiated or reseted
+    /// All the actions sent since the dispatcher was initiated or reseted
     public private(set) var history: ActionFlow<AnyAction> = .noop
 
     private var _reducers: [AnyReducer] = []
     private var _middlewares: [AnyMiddleware] = []
     private var _environment: Environment = .init()
     private var _cancellables: Set<AnyCancellable> = []
-    
+
     public init() {}
+    
+    public var wrappedValue: Dispatcher {
+        get { Dispatcher.main }
+        set {}
+    }
 
     /**
      Registers a new middleware.
@@ -72,13 +78,13 @@ public class Dispatcher {
     }
 
     /**
-     Publishes an action and calls back a completion handler when the action has been processed by all the reducers.
+     Sends an action and calls back a completion handler when the action has been processed by all the reducers.
         - parameter action: The action
      */
-    func publish<A: Action>(_ action: A,
-                            completion: Completion?)
+    func send<A: Action>(_ action: A,
+                         completion: Completion?)
     {
-        _publish(action)
+        _send(action)
             .sink(
                 receiveCompletion: { result in
                     switch result {
@@ -96,13 +102,13 @@ public class Dispatcher {
     }
 
     /**
-     Publishes an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the reducers. If any of the reducers throws an error, the chain is interruped and the remaining actions are not processed.
+     Sends an action flow (multiple actions chained one after the other) and calls back a completion handler when the it has been processed by all the reducers. If any of the reducers throws an error, the chain is interruped and the remaining actions are not processed.
         - parameter flow: The action flow
      */
-    public func publish<A: Action>(_ flow: ActionFlow<A>,
-                                   completion: Completion?)
+    public func send<A: Action>(_ flow: ActionFlow<A>,
+                                completion: Completion?)
     {
-        _publish(flow)
+        _send(flow)
             .sink(
                 receiveCompletion: { result in
                     switch result {
@@ -120,46 +126,46 @@ public class Dispatcher {
     }
 
     /**
-     Publishes an action and returns a publisher that completes (or errors out) when all the reducers finished processing the action.
+     Sends an action and returns a publisher that completes (or errors out) when all the reducers finished processing the action.
         - parameter action: The action
      */
-    public func publish<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
-        _publish(action)
+    public func sendPublisher<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
+        _send(action)
     }
 
     /**
-     Publishes an action flow (multiple actions chained one after the other) and returns a publisher that completes (or errors out) when all the reducers finished processing the actions. If any of the reducers throws an error, the chain is interruped and the remaining actions are not processed anymore.
+     Sends an action flow (multiple actions chained one after the other) and returns a publisher that completes (or errors out) when all the reducers finished processing the actions. If any of the reducers throws an error, the chain is interruped and the remaining actions are not processed anymore.
          - parameter flow: The action flow
      */
-    public func publish<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
-        _publish(flow)
+    public func sendPublisher<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
+        _send(flow)
     }
 
     /**
-     Similar to the other `publish(action:)` methods, except completion is ignored.
+     Similar to the other `send(action:)` methods, except completion is ignored.
          - parameter action: The action
-         - seealso: publish(action:)
+         - seealso: send(action:)
      */
-    public func publishAndForget<A: Action>(_ action: A) {
-        publish(action, completion: nil)
+    public func sendAndForget<A: Action>(_ action: A) {
+        send(action, completion: nil)
     }
 
     /**
-     Similar to the other `publish(flow:)` methods, except completion is ignored.
+     Similar to the other `send(flow:)` methods, except completion is ignored.
         - parameter flow: The action flow
-        - seealso: publish(flow:)
+        - seealso: send(flow:)
      */
-    public func publishAndForget<A: Action>(_ flow: ActionFlow<A>) {
-        publish(flow, completion: nil)
+    public func sendAndForget<A: Action>(_ flow: ActionFlow<A>) {
+        send(flow, completion: nil)
     }
 
     /**
-     Publish an action using `async/await`
+     Send an action using `async/await`
      */
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    public func publish<A: Action>(_ action: A) async throws {
+    public func send<A: Action>(_ action: A) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
-            publish(action) {
+            send(action) {
                 switch $0 {
                 case .success:
                     continuation.resume(returning: ())
@@ -171,12 +177,12 @@ public class Dispatcher {
     }
 
     /**
-     Publish an action flow using `async/await`
+     Send an action flow using `async/await`
      */
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    public func publish<A: Action>(_ flow: ActionFlow<A>) async throws {
+    public func send<A: Action>(_ flow: ActionFlow<A>) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
-            publish(flow) {
+            send(flow) {
                 switch $0 {
                 case .success:
                     continuation.resume(returning: ())
@@ -189,11 +195,11 @@ public class Dispatcher {
 }
 
 private extension Dispatcher {
-    func _publish<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
-        _publish(.init(actions: [action]))
+    func _send<A: Action>(_ action: A) -> AnyPublisher<Void, Error> {
+        _send(.init(actions: [action]))
     }
 
-    func _publish<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
+    func _send<A: Action>(_ flow: ActionFlow<A>) -> AnyPublisher<Void, Error> {
         var pub = Just(())
             .setFailureType(to: Error.self)
             .eraseToAnyPublisher()
@@ -214,7 +220,7 @@ private extension Dispatcher {
                             switch rewrite {
                             case let .redirect(otherFlow):
                                 let actions = otherFlow.actions + stack
-                                return _publish(.init(actions: actions))
+                                return _send(.init(actions: actions))
                             case .none:
                                 continue
                             }
@@ -244,7 +250,7 @@ private extension Dispatcher {
                                     }
                                 })
                                 .flatMap {
-                                    _publish($0)
+                                    _send($0)
                                 }
                                 .share()
                                 .eraseToAnyPublisher()

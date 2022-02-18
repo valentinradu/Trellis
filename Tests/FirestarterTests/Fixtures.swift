@@ -108,11 +108,7 @@ class TestService: Reducer {
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 class TestMiddleware: Middleware {
-    unowned let dispatcher: Dispatcher
-
-    init(dispatcher: Dispatcher) {
-        self.dispatcher = dispatcher
-    }
+    @Dispatcher private var _dispatcher
 
     enum AuthState {
         case unauthenticated
@@ -144,7 +140,7 @@ class TestMiddleware: Middleware {
 
     func pre(action: TestAction) throws -> Rewrite<TestAction> {
         preActions.append((Date.now, action))
-        // If account is unauthenticated but the action requires authentication, look behind, if login action was already published, publish your action, if not, wait until it is and then publish your action
+        // If account is unauthenticated but the action requires authentication, look behind, if login action was already sent, send your action, if not, wait until it is and then send your action
         if authState == .unauthenticated,
            authenticatedActionsNames.contains(action.name)
         {
@@ -153,15 +149,15 @@ class TestMiddleware: Middleware {
             return .redirect(to: .single(action: redirection))
         }
 
-        // If we have to register the device id, check if the account is unauthenticated, if so, look behind in history and publish `.registerNewDevice` either right away, if `.login` was already published, or right after `.login` get published.
-        // Alternatively, if the account is already authenticated, wait for `.fetchAccount` and publish right after it
+        // If we have to register the device id, check if the account is unauthenticated, if so, look behind in history and send `.registerNewDevice` either right away, if `.login` was already sent, or right after `.login` get sent.
+        // Alternatively, if the account is already authenticated, wait for `.fetchAccount` and send it right after it
         if action.name == .registerNewDevice {
             if authState == .unauthenticated {
                 let redirection: TestAction = .postpone(action,
                                                         until: .login)
                 return .redirect(to: .single(action: redirection))
             } else {
-                if !dispatcher.history.actions
+                if !_dispatcher.history.actions
                     .compactMap({ $0.wrappedValue as? TestAction })
                     .map(\.name)
                     .contains(TestAction.fetchAccount.name)
@@ -175,7 +171,7 @@ class TestMiddleware: Middleware {
             }
         }
 
-        // If the account is not authenticated but we try to publish an action that require authentication, navigate the user to the login page (we'd normally also clear the  state here)
+        // If the account is not authenticated but we try to send an action that require authentication, navigate the user to the login page (we'd normally also clear the  state here)
         if authState == .unauthenticated,
            authenticatedActionsNames.contains(action.name)
         {
