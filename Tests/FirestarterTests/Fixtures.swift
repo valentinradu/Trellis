@@ -83,7 +83,7 @@ enum TestError: Error, Equatable {
 class TestViewModel: Service {
     var actions: [(Date, TestAction)] = []
 
-    func receive(_ action: TestAction) async throws -> ActionFlow<TestAction> {
+    func receive(_ action: TestAction) async throws -> ActionFlow<AnyAction> {
         try await Task.sleep(nanoseconds: UInt64(0.3 * Double(NSEC_PER_SEC)))
         actions.append((Date.now, action))
         return .noop
