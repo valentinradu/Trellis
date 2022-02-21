@@ -6,8 +6,8 @@ import PackageDescription
 let package = Package(
     name: "Firestarter",
     platforms: [
-        .iOS(.v13), .macOS(.v11), .tvOS(.v9),
-        .macCatalyst(.v13), .watchOS(.v2), .driverKit(.v19),
+        .iOS(.v14), .macOS(.v11), .tvOS(.v14),
+        .macCatalyst(.v14), .watchOS(.v7), .driverKit(.v20),
     ],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
