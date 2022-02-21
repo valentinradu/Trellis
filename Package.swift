@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "Firestarter",
     platforms: [
-        .iOS(.v13), .macOS(.v10_15), .tvOS(.v9),
+        .iOS(.v13), .macOS(.v11), .tvOS(.v9),
         .macCatalyst(.v13), .watchOS(.v2), .driverKit(.v19),
     ],
     products: [

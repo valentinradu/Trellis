@@ -10,7 +10,7 @@ import XCTest
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class DispatcherTests: XCTestCase {
-    @Dependency(\.dispatcher) private var _dispatcher
+    @Dispatcher private var _dispatcher
     private var _service: TestViewModel!
     private var _middleware: TestMiddleware!
 
@@ -67,12 +67,5 @@ final class DispatcherTests: XCTestCase {
         } catch {
             XCTAssertEqual(error as? TestError, TestError.accessDenied)
         }
-    }
-    
-    func testEnvironment() async throws {
-        let testDependency = TestDependency()
-        DependencyRepository.main.testDependency = testDependency
-        try await _dispatcher.send(TestAction.resetPassword)
-        XCTAssertTrue(_service.testDependency === testDependency)
     }
 }

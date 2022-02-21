@@ -6,21 +6,8 @@
 //
 
 @testable import Firestarter
+import SwiftUI
 import XCTest
-
-class State {}
-class TestDependency {}
-
-struct TestServiceKey: DependencyKey {
-    static var value: TestDependency = .init()
-}
-
-extension DependencyRepository {
-    var testDependency: TestDependency {
-        get { self[TestServiceKey.self] }
-        set { self[TestServiceKey.self] = newValue }
-    }
-}
 
 /// To make things easier to follow, the tests are working with a set of toy actions that emulate an app that has authentication, both as a regular user and admin, a simple audio player available only to authenticated users and a set of admin-specific actions.
 indirect enum TestAction: Action, Hashable {
@@ -94,7 +81,6 @@ enum TestError: Error, Equatable {
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 class TestViewModel: Service {
-    @Dependency(\.testDependency) var testDependency
     var actions: [(Date, TestAction)] = []
 
     func receive(_ action: TestAction) async throws -> ActionFlow<TestAction> {
@@ -106,7 +92,7 @@ class TestViewModel: Service {
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 class TestMiddleware: Middleware {
-    @Dependency(\.dispatcher) private var _dispatcher
+    @Dispatcher private var _dispatcher
 
     enum AuthState {
         case unauthenticated
