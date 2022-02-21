@@ -16,7 +16,7 @@ import Combine
 
  - note: All the async `send` operations also have `Combine`, `async/await` and legacy callback closures support.
  */
-@propertyWrapper public class Dispatcher {
+@propertyWrapper public class Dispatcher: Equatable {
     static let main: Dispatcher = .init()
 
     public typealias Completion = (Result<Void, Error>) -> Void
@@ -32,6 +32,10 @@ import Combine
     
     public var wrappedValue: Dispatcher {
         Dispatcher.main
+    }
+    
+    public static func == (lhs: Dispatcher, rhs: Dispatcher) -> Bool {
+        lhs === rhs
     }
 
     /**
@@ -75,7 +79,7 @@ import Combine
      Sends an action and calls back a completion handler when the action has been processed by all the services.
         - parameter action: The action
      */
-    func send<A: Action>(_ action: A,
+    public func send<A: Action>(_ action: A,
                          completion: Completion?)
     {
         _send(action)
