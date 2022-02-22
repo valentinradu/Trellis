@@ -25,19 +25,18 @@ public final class DependencyRepository {
 }
 
 @propertyWrapper public struct Dependency<Value> {
-    private var repository: DependencyRepository = .main
-    private let keyPath: ReferenceWritableKeyPath<DependencyRepository, Value>
+    private let keyPath: WritableKeyPath<DependencyRepository, Value>
 
-    public init(_ keyPath: ReferenceWritableKeyPath<DependencyRepository, Value>) {
+    public init(_ keyPath: WritableKeyPath<DependencyRepository, Value>) {
         self.keyPath = keyPath
     }
 
     public var wrappedValue: Value {
         get {
-            repository[keyPath: keyPath]
+            DependencyRepository.main[keyPath: keyPath]
         }
         nonmutating set {
-            repository[keyPath: keyPath] = newValue
+            DependencyRepository.main[keyPath: keyPath] = newValue
         }
     }
 }
