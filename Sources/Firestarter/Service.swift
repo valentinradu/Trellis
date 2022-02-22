@@ -6,6 +6,7 @@
 //
 
 import Combine
+import Foundation
 
 /**
  Services are specialized in processing tasks when receiving specific actions.
@@ -24,7 +25,7 @@ public protocol Service {
         - returns: An action flow received right after the current action
      */
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    func receive(_ action: A) async throws -> ActionFlow<AnyAction>
+    @MainActor func receive(_ action: A) async throws -> ActionFlow<AnyAction>
 }
 
 public extension Service {
@@ -42,6 +43,7 @@ public extension Service {
             }
 
             return pub
+                .receive(on: RunLoop.main)
                 .eraseToAnyPublisher()
         } else {
             return Just(.noop)
@@ -65,8 +67,7 @@ public struct AnyService: Service {
 
     public init<W: Service>(_ source: W) {
         receiveClosure = {
-            if let action = $0.wrappedValue as? W.A
-            {
+            if let action = $0.wrappedValue as? W.A {
                 return source.receive(action)
                     .map {
                         ActionFlow(actions: $0.actions.map { AnyAction($0) })
