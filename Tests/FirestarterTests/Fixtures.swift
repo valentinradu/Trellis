@@ -6,7 +6,6 @@
 //
 
 @testable import Firestarter
-import SwiftUI
 import XCTest
 
 /// To make things easier to follow, the tests are working with a set of toy actions that emulate an app that has authentication, both as a regular user and admin, a simple audio player available only to authenticated users and a set of admin-specific actions.
@@ -92,7 +91,7 @@ class TestViewModel: Service {
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 class TestMiddleware: Middleware {
-    @Dispatcher private var _dispatcher
+    @Dependency(\.dispatcher) private var _dispatcher
 
     enum AuthState {
         case unauthenticated

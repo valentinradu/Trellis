@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftUI
 
 /**
  Actions are atomic units that drive all the other actors: the dispatcher sends them while the services receive action-associated tasks as a result. Middleware is called before and after each action is processed and can be used to redirect the action or for handling all failures in one place.
@@ -74,30 +73,5 @@ public struct ActionFlow<A: Action> {
     /// Append a new action after this chain of actions.
     public func then(_ action: A) -> ActionFlow {
         ActionFlow(actions: actions + [action])
-    }
-}
-
-@propertyWrapper public struct ActionBinding<Value, A: Action> {
-    public var wrappedValue: Value
-    private let action: (Value) -> A
-    @Dispatcher private var dispatcher
-
-    public init(wrappedValue: Value, action: @escaping (Value) -> A) {
-        self.wrappedValue = wrappedValue
-        self.action = action
-    }
-
-    public var projectedValue: Binding<Value> {
-        Binding {
-            wrappedValue
-        } set: {
-            dispatcher.sendAndForget(action($0))
-        }
-    }
-}
-
-extension ActionBinding: Equatable where Value: Equatable {
-    public static func == (lhs: ActionBinding<Value, A>, rhs: ActionBinding<Value, A>) -> Bool {
-        lhs.wrappedValue == rhs.wrappedValue
     }
 }

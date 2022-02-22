@@ -16,7 +16,7 @@ import Combine
 
  - note: All the async `send` operations also have `Combine`, `async/await` and legacy callback closures support.
  */
-@propertyWrapper public class Dispatcher: Equatable {
+public class Dispatcher {
     static let main: Dispatcher = .init()
 
     public typealias Completion = (Result<Void, Error>) -> Void
@@ -29,14 +29,6 @@ import Combine
     private var _cancellables: Set<AnyCancellable> = []
 
     public init() {}
-    
-    public var wrappedValue: Dispatcher {
-        Dispatcher.main
-    }
-    
-    public static func == (lhs: Dispatcher, rhs: Dispatcher) -> Bool {
-        lhs === rhs
-    }
 
     /**
      Registers a new middleware.
@@ -80,7 +72,7 @@ import Combine
         - parameter action: The action
      */
     public func send<A: Action>(_ action: A,
-                         completion: Completion?)
+                                completion: Completion?)
     {
         _send(action)
             .sink(
@@ -189,6 +181,17 @@ import Combine
                 }
             }
         }
+    }
+}
+
+private struct DispatcherKey: DependencyKey {
+    static var value: Dispatcher = .main
+}
+
+public extension DependencyRepository {
+    var dispatcher: Dispatcher {
+        get { self[DispatcherKey.self] }
+        set { self[DispatcherKey.self] = newValue }
     }
 }
 
