@@ -28,8 +28,7 @@ public struct AnyAction: Action {
     public init<A: Action>(_ action: A) {
         if let anyAction = action as? AnyAction {
             self = anyAction
-        }
-        else {
+        } else {
             wrappedValue = action
         }
     }

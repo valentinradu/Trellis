@@ -68,7 +68,7 @@ public struct AnyMiddleware: Middleware {
     }
 
     public func pre(action: A) throws -> Rewrite<A> {
-        return try preClosure(action)
+        try preClosure(action)
     }
 
     public func post(action: A) {

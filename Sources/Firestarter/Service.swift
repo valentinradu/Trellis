@@ -54,7 +54,7 @@ public extension Service {
 
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     func receive(_: A) async throws -> ActionFlow<AnyAction> {
-        return .noop
+        .noop
     }
 }
 

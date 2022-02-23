@@ -5,8 +5,8 @@
 //  Created by Valentin Radu on 02/11/2021.
 //
 
-@testable import Firestarter
 import XCTest
+@testable import Firestarter
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class DispatcherTests: XCTestCase {
@@ -50,7 +50,7 @@ final class DispatcherTests: XCTestCase {
             [
                 .login,
                 .fetchAccount,
-                .postpone(.registerNewDevice, until: .fetchAccount)
+                .postpone(.registerNewDevice, until: .fetchAccount),
             ]
         )
     }

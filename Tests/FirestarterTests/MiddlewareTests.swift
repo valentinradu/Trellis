@@ -5,8 +5,8 @@
 //  Created by Valentin Radu on 02/11/2021.
 //
 
-@testable import Firestarter
 import XCTest
+@testable import Firestarter
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class MiddlewareTests: XCTestCase {
@@ -90,7 +90,7 @@ final class MiddlewareTests: XCTestCase {
             [
                 .postpone(.registerNewDevice, until: .login),
                 .login,
-                .postpone(.registerNewDevice, until: .fetchAccount)
+                .postpone(.registerNewDevice, until: .fetchAccount),
             ]
         )
 
@@ -103,7 +103,7 @@ final class MiddlewareTests: XCTestCase {
                 .login,
                 .postpone(.registerNewDevice, until: .fetchAccount),
                 .fetchAccount,
-                .registerNewDevice
+                .registerNewDevice,
             ]
         )
         XCTAssertLessThan(_service.actions[0].0, _service.actions[1].0)
@@ -124,7 +124,7 @@ final class MiddlewareTests: XCTestCase {
                 .postpone(.registerNewDevice, until: .login),
                 .login,
                 .fetchAccount,
-                .registerNewDevice
+                .registerNewDevice,
             ]
         )
     }

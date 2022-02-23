@@ -1,11 +1,10 @@
 # ![Firestarter](firestarter.svg)
 
-[![SwiftUI](https://img.shields.io/badge/SwiftUI-blue.svg?style=for-the-badge&logo=swift&logoColor=black)](https://developer.apple.com/xcode/swiftui)
 [![Swift](https://img.shields.io/badge/Swift-5.3-orange.svg?style=for-the-badge&logo=swift)](https://swift.org)
 [![Xcode](https://img.shields.io/badge/Xcode-13-blue.svg?style=for-the-badge&logo=Xcode&logoColor=white)](https://developer.apple.com/xcode)
 [![MIT](https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Firestarter is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. Loosely inspired by Redux, it's very lightweight, just a couple of hundreds of lines of code. It can be used as a framework, but can also serve as inspiration for your own Redux-like architecture.
+Firestarter is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. Inspired by the microservices architecture, it favors unidirectional data flow, separation of concerns, and business logic and data encapsulation.
 
 # ![Architecture](architecture.svg)
 
@@ -14,30 +13,52 @@ Firestarter is a zero-dependency architectural framework that helps you write cl
 * [Core Concepts](#core-concepts)
 * [Common patterns](#common-patterns)
 * [Multi-threading](#multi-threading)
-* [SwiftUI example](#swiftui-example)
+* [Example](#example)
 * [License](#license)
 
 ## Features
 
-- expressive, compact and easy to use API
-- built for `iOS`, `macOS`, `tvOS`, `macCatalyst`, `watchOS` and `driverKit`
+- expressive, compact API
 - full middleware support
 - zero library dependencies
-- supports redirects and deffered calls
+- supports redirects and deferred calls
 - full action history
-- works with legacy callbacks, `Combine` and/or `await/async` 
+- works with legacy callbacks, `Combine` and/or `await/async`
+- built for `iOS`, `macOS`, `tvOS`, `macCatalyst`, `watchOS` and `driverKit` 
 - fully tested
 
 ## Core Concepts
 
-There are 4 actors that work together in Firestarter: `Action`s, `Middleware`s, `Service`s and the `Dispatcher`. The first 3 are protocols that can be adopted by any `struct`, `class` and even `enum` for actions. The dispatcher is the entry point, the entity that sends actions and triggers the `dispatcher -> pre (middleware) -> service -> post (middleware)` processing flow.
+### Services
+
+Services encapsulate the business logic and its associated data. Each service should handle a specific set of tasks that go together well, like authentication, profile, prefetching, persistence, various (article, users, likes, etc) repositories, and so on. Services perform these tasks when receiving actions inside `receive(action:)`. `receive(action:)` supports calling async code allowing you to offload work to other threads (e.g. when making network requests).
+
+```swift
+// GatekeeperService.swift
+// An authentication service
+class GatekeeperService: Service {
+    func receive(_ action: GatekeeperAction) async throws -> ActionFlow<AnyAction> {
+        switch action {
+        case let .login(username, password):
+            // make the server login call, update the gatekeeper state etc
+        case .logout:
+            // clear state, reset the dispatcher, remove any user-persisting data etc
+            // ...
+        }
+        
+        return .noop
+    }
+}
+```
 
 ### Actions
 
-Actions drive all the other actors. They model all the possible events that your application can handle. Also, once sent, most of them will lead to a state mutation inside the services.
+Actions model all the possible events that a service can handle.
 
  ```swift
- /// An example of 3 actions used to authenticate a user
+ // GatekeeperService.swift
+ // Actions are typically declared inside the service that handles them
+ // An example of 3 actions used to authenticate a user
  enum GatekeeperAction: Action {
      case login(email: String, password: String)
      case logout
@@ -47,14 +68,14 @@ Actions drive all the other actors. They model all the possible events that your
 
 ### Middlewares
 
-Middlewares are getting called before/after *any* of the services start/finish processing an action.
+Middlewares are getting called before *any* of the services start processing an action (`pre(action)`) and after all the services finished processing an action (`post(action)`).
 
 - The `pre(action:)` method is called before the services start processing an action and it's mostly used to redirect the action to another action flow.
 - The `post(action:)` method is called after all the services finished processing the action.
-- The `failure(action:, error:)` methods is called when any of the services raise an error.
+- The `failure(action:, error:)` method is called when any of the services raise an error.
 
 ```swift
-/// An example of a middleware blocking all user actions until a authenticated user is present 
+// An example of a middleware blocking all user actions until an authenticated user is present 
 
 enum UserAction: Action {
 case fetchArticles
@@ -72,40 +93,18 @@ func pre(action: UserAction) throws -> Rewrite<UserAction> {
 }
 ```
 
-### Services
-
-The services contain most of the business logic in a Firestarter-architectured app. Each service should handle a specific set of tasks that go together well. Like authentication, profile, prefetching, persistance, various (article, users, likes, etc) repositories and so on.
-Services will ignore most of the actions they receive in `receive(action:)` handling only relevant ones. `receive(action:)` is async in nature (works with legacy callbacks, `Combine` and/or `await/async`) allowing you to offload work to other threads, make network requests or call other async mathods.
-
-```swift
-/// A authentication service
-class AuthService: Service {
-    func receive(_ action: TestAction) async throws -> ActionFlow<TestAction> {
-        switch action {
-        case let .login(username, password):
-            // make the server login call, update the app state etc
-        case .logout:
-            // clear state, reset the dispatcher, remove any user-persisting data etc
-        // ...
-        }
-        
-        return .noop
-    }
-}
-```
-
 ### The Dispatcher
 
-The dispatcher's main purpose is to send actions (`send(action:)`), starting the process that will make all the other actors react. Beyond that, it also initially registers the services and middlewares.
+The dispatcher is the entry point, a mediator, the entity that allows services to communicate with each other.
 
 ## Common patterns
 
 ### Blocking an action
 
-There is no built-in way to block an action, one of the rules Firestarter follows is: once an action is sent, it will always either complete or fail. This is keeping everything consistent and predictable and its very helpful for debugging. However, it's trivial to add a `.noop` action that gets ignored by all your services. Redirecting to this `.noop` action in the middleware will behave like you're blocking current the action, however, it also keeps things predictable and consistent as described above. 
+There is no built-in way to block an action, one of the rules Firestarter follows is: once an action is sent, it will always either complete or fail. This is keeping everything consistent and predictable and it's helpful for debugging. However, it's trivial to add a `.noop` action that gets ignored by all your services. Redirecting to this `.noop` action in the middleware will behave like you're blocking current the action while keeping things predictable and consistent. 
 
 ```swift
-/// Blocking actions when the user is not authenticated
+// Blocking actions when the user is not authenticated
 func pre(action: UserAction) throws -> Rewrite<UserAction> {
     // If user is not authenticated, redirect to `.noop` and do nothing
     if state.user == .unauthenticated {
@@ -119,7 +118,7 @@ func pre(action: UserAction) throws -> Rewrite<UserAction> {
 There is no built-in way to postpone an action, however, just like with blocking actions, one can have a `.postpone(action:)` action that stacks actions in an `ActionFlow` until a certain other action is sent.
 
 ```swift
-/// Postponing an action until the user is authenticated
+// Postponing an action until the user is authenticated
 
 var postponedActions: ActionFlow<UserAction> = .noop()
 
@@ -149,58 +148,42 @@ func post(action: TestAction) {
 }
 ```
 
-### Identifying actions by name
-
-When packing actions as `enum`s it's somewhat common to also refer the actions by name only (without the parameters). One way to do it is by having another inner `enum` that maps the action to its name as done in the example below.
-
-```swift
-enum UserAction: Action {
-    case login(email: String, password: String)
-    case logout
-    case resetPassword
-    
-    enum Name: Hashable {
-        case login
-        case logout
-        case resetPassword
-    }
-
-    var name: Name {
-        switch self {
-        case .login: return .login
-        case .logout: return .logout
-        case .resetPassword: return .resetPassword
-        }
-    }
-}
-```
-
 ## Multi-threading
 
-Firestarter expects all its methods to be called on the main thread. However, since the `receive(action:)` method of the service is async, you can always offload the work to multiple threads as long as you return to the main thread before returning the result (e.g. using `receive(on:)` in `Combine`)
+Firestarter expects all its methods to be called on the same thread (usually the main thread). However, since the `receive(action:)` method of the service is async, you can always offload the work to multiple threads as long as you return to the same thread before returning the result (e.g. using `receive(on:)` in `Combine`)
 
-## SwiftUI example
+## Example
 
 ```swift
-// Actions.swift
-// An enum containing all the actions (events) an app can trigger
-enum AppAction: Action {
+// GatekeeperService.swift
+// An enum containing all the actions (events) the gatekeeper service can handle
+enum GatekeeperAction: Action {
     case login(email: String, password: String)
     case logout
     case resetPassword
-    ...
-    case noop
 }
 
-// Middleware.swift
-// A class that receives all actions before any service
+// The gatekeeper state. It can be read by other services, but only 
+// this service is allowed to mutate it
+private struct GatekeeperStateKey: DependencyKey {
+    static var value: GatekeeperState = .main
+}
+
+public extension DependencyRepository {
+    fileprivate(set) var gatekeeperState: GatekeeperState {
+        get { self[GatekeeperStateKey.self] }
+        set { self[GatekeeperStateKey.self] = newValue }
+    }
+}
+
+// A class that receives all actions before the service
 // (before the action gets processed) and has the opportunity 
-// to redirect it to another action. Like services, it has read access 
-// to the state, unlike services, it should not mutate the state. 
-// The middleware is optional.
-class Middleware: Middleware {
-    let state: AppState
-    func pre(action: AppAction) throws -> Rewrite<AppAction> {
+// to redirect it to another action. Middlewares, like services, 
+// have access to the state. 
+class GatekeeperMiddleware: Middleware {
+    @Dependency(\.gatekeeperState) var state
+    
+    func pre(action: GatekeeperAction) throws -> Rewrite<AnyAction> {
         // If the user is not authenticated, we can redirect to `.noop` 
         // which is an action not handled by any of the services, 
         // essentially stoping the processing flow.
@@ -210,21 +193,21 @@ class Middleware: Middleware {
     }
 }
 
-// AuthService.swift
-// The `AuthService` is handling all authentication-related actions. 
+// The service is handling all authentication-related actions. 
 // It can offload work to secondary threads, handle business logic, 
-// delegate work other modules and so on. Each action handled here usually 
+// delegate work to other services and so on. Each action here usually 
 // mutates the state. It returns an action flow if other actions need executing 
-// right after the current, or `.noop`. 
+// right after the current one, or `.noop`. 
 class AuthService: Service {
-    let state: AppState
+    @Dependency(\.gatekeeperState) var state
+        
     func receive(_ action: AppAction) async throws -> ActionFlow<AppAction> {
         switch action {
         case let .login(username, password):
-            ...
-            // updating the state after login
+            // ...
+            // make the server login call
+            // update the state after login
             state.user == .authenticated(user)
-            // make the server login call, update the app state etc
         case .logout:
             // clear state, reset the dispatcher, 
             // remove any user-persisting data etc
@@ -233,32 +216,6 @@ class AuthService: Service {
         }
         
         return .noop
-    }
-}
-
-// App.swift
-// Here's where we put everything together and expose 
-// the dispatcher and the state to the view tree
-@main
-struct MyApp: App {
-    var body: some Scene {
-        let state = AppState() 
-        let userViewModel = UserViewModel(state: state)
-        let booksViewModel = BooksViewModel(state: state)
-        ...
-        let dispatcher = Dispatcher()
-        let middleware = Middleware(state: state)
-        let authService = AuthService(state: state)
-        
-        dispatcher.register(middleware: middleware)
-        dispatcher.register(service: authService)
-
-        return WindowGroup {
-            AppView()
-                .environment(\.dispatcher, dispatcher)
-                .environmentObject(userViewModel)
-                .environmentObject(booksViewModel)
-        }
     }
 }
 ```
