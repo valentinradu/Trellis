@@ -6,7 +6,7 @@
 //
 
 import XCTest
-@testable import Firestarter
+@testable import Trellis
 
 /// To make things easier to follow, the tests are working with a set of toy actions that emulate an app that has authentication, both as a regular user and admin, a simple audio player available only to authenticated users and a set of admin-specific actions.
 indirect enum TestAction: Action, Hashable {

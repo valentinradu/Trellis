@@ -6,7 +6,7 @@
 //
 
 import XCTest
-@testable import Firestarter
+@testable import Trellis
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class DispatcherTests: XCTestCase {

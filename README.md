@@ -1,12 +1,10 @@
-# ![Firestarter](firestarter.svg)
+# ![Trellis](Trellis.svg)
 
 [![Swift](https://img.shields.io/badge/Swift-5.3-orange.svg?style=for-the-badge&logo=swift)](https://swift.org)
 [![Xcode](https://img.shields.io/badge/Xcode-13-blue.svg?style=for-the-badge&logo=Xcode&logoColor=white)](https://developer.apple.com/xcode)
 [![MIT](https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Firestarter is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. Inspired by the microservices architecture, it favors unidirectional data flow, separation of concerns, and business logic and data encapsulation.
-
-# ![Architecture](architecture.svg)
+Trellis is a zero-dependency architectural framework that helps you write clean, predictable, testable applications in Swift. Inspired by the microservices architecture, it favors unidirectional data flow, separation of concerns, and business logic and data encapsulation.
 
 ## Index
 * [Features](#features)
@@ -101,7 +99,7 @@ The dispatcher is the entry point, a mediator, the entity that allows services t
 
 ### Blocking an action
 
-There is no built-in way to block an action, one of the rules Firestarter follows is: once an action is sent, it will always either complete or fail. This is keeping everything consistent and predictable and it's helpful for debugging. However, it's trivial to add a `.noop` action that gets ignored by all your services. Redirecting to this `.noop` action in the middleware will behave like you're blocking current the action while keeping things predictable and consistent. 
+There is no built-in way to block an action, one of the rules Trellis follows is: once an action is sent, it will always either complete or fail. This is keeping everything consistent and predictable and it's helpful for debugging. However, it's trivial to add a `.noop` action that gets ignored by all your services. Redirecting to this `.noop` action in the middleware will behave like you're blocking current the action while keeping things predictable and consistent. 
 
 ```swift
 // Blocking actions when the user is not authenticated
@@ -150,7 +148,7 @@ func post(action: TestAction) {
 
 ## Multi-threading
 
-Firestarter expects all its methods to be called on the same thread (usually the main thread). However, since the `receive(action:)` method of the service is async, you can always offload the work to multiple threads as long as you return to the same thread before returning the result (e.g. using `receive(on:)` in `Combine`)
+Trellis expects all its methods to be called on the same thread (usually the main thread). However, since the `receive(action:)` method of the service is async, you can always offload the work to multiple threads as long as you return to the same thread before returning the result (e.g. using `receive(on:)` in `Combine`)
 
 ## Example
 
