@@ -5,83 +5,111 @@
 //  Created by Valentin Radu on 06/11/2021.
 //
 
-import Combine
 import Foundation
 
-/**
- Services are specialized in processing tasks when receiving specific actions.
- */
-public protocol Service {
-    associatedtype A: Action
-    /**
-     The `receive(action:)` method is called by the dispatcher when an action needs to be processed.
-        - parameter action: The received action
-        - returns: A publisher that returns an action flow received right after the current action
-     */
-    func receive(_ action: A) -> AnyPublisher<ActionFlow<AnyAction>, Error>
-    /**
-     The `receive(action:)` method is called by the dispatcher when an action needs to be processed and received
-        - parameter action: The received action
-        - returns: An action flow received right after the current action
-     */
-    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    @MainActor func receive(_ action: A) async throws -> ActionFlow<AnyAction>
+public actor Store<State>: ObservableObject {
+    public private(set) var state: State
+
+    public init(_ state: State) {
+        self.state = state
+    }
+
+    internal func update<T>(_ closure: (inout State) -> T) -> T {
+        objectWillChange.send()
+        return closure(&state)
+    }
 }
 
-public extension Service {
-    func receive(_ action: A) -> AnyPublisher<ActionFlow<AnyAction>, Error> {
-        if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
-            let pub: PassthroughSubject<ActionFlow<AnyAction>, Error> = PassthroughSubject()
-            Task {
-                do {
-                    let others = try await receive(action)
-                    pub.send(others)
-                    pub.send(completion: .finished)
-                } catch {
-                    pub.send(completion: .failure(error))
+public enum SideEffect<E> where E: Actor {
+    public typealias Operation = (Dispatcher, E) async throws -> Void
+    case noop
+    case sideEffects(Operation)
+
+    public init(_ operation: @escaping Operation) {
+        self = .sideEffects(operation)
+    }
+
+    public func callAsFunction(dispatcher: Dispatcher, environment: E) async throws {
+        switch self {
+        case .noop:
+            break
+        case let .sideEffects(operation):
+            try await operation(dispatcher, environment)
+        }
+    }
+}
+
+public enum ReducerResult<E> where E: Actor {
+    case ignore
+    case resolve(SideEffect<E>)
+}
+
+public struct Reducer<E, S> where E: Actor {
+    internal typealias Operation = (inout S, AnyAction) -> ReducerResult<E>
+    private let _operation: Operation
+    public init<A>(_ operation: @escaping (inout S, A) -> SideEffect<E>) where A: Action {
+        _operation = { state, action in
+            if let action = action.base as? A {0
+                return .resolve(operation(&state, action))
+            }
+            return .ignore
+        }
+    }
+
+    internal func reduce(state: inout S, action: AnyAction) -> ReducerResult<E> {
+        _operation(&state, action)
+    }
+}
+
+public actor Service<E, S>: StatefulReducer where E: Actor {
+    private var _environment: E
+    private var _store: Store<S>
+    private var _reducers: [Reducer<E, S>]
+
+    public init(environment: E, store: Store<S>) {
+        _environment = environment
+        _store = store
+        _reducers = []
+    }
+
+    public func add<A>(reducer: @escaping (inout S, A) -> SideEffect<E>) where A: Action {
+        _reducers.append(Reducer(reducer))
+    }
+
+    public func replace(environment: E) {
+        _environment = environment
+    }
+
+    public func replace(store: Store<S>) {
+        _store = store
+    }
+
+    internal func reduce(action: AnyAction) async -> StatefulReducerResult {
+        var sideEffects: [SideEffect<E>] = []
+        for reducer in _reducers {
+            let result = await _store.update { (state: inout S) -> ReducerResult<E> in
+                reducer.reduce(state: &state, action: action)
+            }
+
+            switch result {
+            case .ignore:
+                continue
+            case let .resolve(sideEffect):
+                sideEffects.append(sideEffect)
+            }
+        }
+
+        if !sideEffects.isEmpty {
+            return .resolve { [weak self] dispatcher in
+                for sideEffect in sideEffects {
+                    if let self = self {
+                        try await sideEffect(dispatcher: dispatcher,
+                                             environment: self._environment)
+                    }
                 }
             }
-
-            return pub
-                .receive(on: RunLoop.main)
-                .eraseToAnyPublisher()
         } else {
-            return Just(.noop)
-                .setFailureType(to: Error.self)
-                .eraseToAnyPublisher()
+            return .ignore
         }
-    }
-
-    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
-    func receive(_: A) async throws -> ActionFlow<AnyAction> {
-        .noop
-    }
-}
-
-/**
- Service type erasure
- */
-public struct AnyService: Service {
-    public typealias A = AnyAction
-    private let receiveClosure: (AnyAction) -> AnyPublisher<ActionFlow<A>, Error>
-
-    public init<W: Service>(_ source: W) {
-        receiveClosure = {
-            if let action = $0.wrappedValue as? W.A {
-                return source.receive(action)
-                    .map {
-                        ActionFlow(actions: $0.actions.map { AnyAction($0) })
-                    }
-                    .eraseToAnyPublisher()
-            } else {
-                return Just(.noop)
-                    .setFailureType(to: Error.self)
-                    .eraseToAnyPublisher()
-            }
-        }
-    }
-
-    public func receive(_ action: A) -> AnyPublisher<ActionFlow<A>, Error> {
-        receiveClosure(action)
     }
 }

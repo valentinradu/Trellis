@@ -5,67 +5,46 @@
 //  Created by Valentin Radu on 02/11/2021.
 //
 
-import XCTest
 @testable import Trellis
+import XCTest
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class DispatcherTests: XCTestCase {
-    @Dependency(\.dispatcher) private var _dispatcher
-    private var _service: TestViewModel!
-    private var _middleware: TestMiddleware!
+    private var _dispatcher: Dispatcher!
+    private var _service: Service<TestEnvironment, AccountState>!
+    private var _store: Store<AccountState>!
 
-    override func setUp() {
-        _service = TestViewModel()
-        _middleware = TestMiddleware()
-
-        _dispatcher.reset(history: true,
-                          services: true,
-                          middlewares: true)
-        _dispatcher.register(service: _service)
-        _dispatcher.register(middleware: _middleware)
+    override func setUp() async throws {
+        _dispatcher = await Dispatcher()
+        let (store, service) = await AccountService.bootstrap()
+        _service = service
+        _store = store
     }
 
-    func testRegister() async throws {
-        let otherService = TestViewModel()
-        _dispatcher.register(service: otherService)
-        try await _dispatcher.send(TestAction.resetPassword)
+    func testRegisterService() async {
+        let expectation = XCTestExpectation(description: "Service is called")
+        let reducer = AccountService.fulfillReducer(expectation: expectation)
+        await _service.add(reducer: reducer)
 
-        XCTAssertEqual(otherService.actions.map(\.1), [.resetPassword])
+        await _dispatcher.register(service: _service)
+        await _dispatcher.send(action: AccountAction.login(email: "a"))
+        await _dispatcher.send(action: AccountAction.login(email: "b"))
+        await _dispatcher.send(action: AccountAction.login(email: "c"))
+
+        let result = XCTWaiter.wait(for: [expectation], timeout: 0.1)
+        XCTAssertEqual(result, .completed)
     }
 
-    func testPurgeHistory() async throws {
-        _middleware.authState = .authenticated
-        try await _dispatcher.send(
-            TestAction
-                .login(email: "", password: "")
-                .then(other: .fetchAccount)
-        )
+    func testUnegisterService() async {
+        let expectation = XCTestExpectation(description: "Service is called")
+        let reducer = AccountService.fulfillReducer(expectation: expectation)
+        await _service.add(reducer: reducer)
 
-        _dispatcher.reset(history: true)
-        try await _dispatcher.send(TestAction.registerNewDevice(id: ""))
+        await _dispatcher.register(service: _service)
+        await _dispatcher.unregister(service: _service)
+        await _dispatcher.send(action: AccountAction.login(email: "a"))
 
-        // Even if all dependencies should be solved, `.registerNewDevice` won't be sent since we purged the history and would require an additional `.fetchAccount` to do so
-        XCTAssertEqual(
-            _service.actions.map(\.1.name),
-            [
-                .login,
-                .fetchAccount,
-                .postpone(.registerNewDevice, until: .fetchAccount),
-            ]
-        )
-    }
-
-    func testSendSuccess() async throws {
-        try await _dispatcher.send(TestAction.resetPassword)
-        XCTAssertEqual(_service.actions.map(\.1), [.resetPassword])
-    }
-
-    func testSendError() async throws {
-        do {
-            try await _dispatcher.send(TestAction.closeAccount)
-            XCTFail()
-        } catch {
-            XCTAssertEqual(error as? TestError, TestError.accessDenied)
-        }
+        let result = XCTWaiter.wait(for: [expectation], timeout: 0.25)
+        XCTAssertEqual(result, .timedOut)
     }
 }

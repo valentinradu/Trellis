@@ -8,69 +8,36 @@
 import Foundation
 
 /**
- Actions are atomic units that drive all the other actors: the dispatcher sends them while the services receive action-associated tasks as a result. Middleware is called before and after each action is processed and can be used to redirect the action or for handling all failures in one place.
- Any class, struct or enum can implement the `Action` protocol. However, most of the time we define actions in an enum:
+ Reducers react to **actions** and mutate the state in a predictable way.
  ```
- enum GatekeeperAction: Action, Equatable {
+ enum GatekeeperAction: Action {
      case login(email: String, password: String)
      case logout
      case resetPassword
  }
  ```
  */
-public protocol Action {}
-
-/**
- Type-erasure for `Action`s
- */
-public struct AnyAction: Action {
-    public let wrappedValue: Any
-    public init<A: Action>(_ action: A) {
-        if let anyAction = action as? AnyAction {
-            self = anyAction
-        } else {
-            wrappedValue = action
-        }
-    }
-}
-
-public extension Action {
-    /// Used to chain multiple actions one after the other
-    func then(other: Self) -> ActionFlow<Self> {
-        ActionFlow(actions: [self, other])
-    }
-
-    func then(flow: ActionFlow<Self>) -> ActionFlow<Self> {
-        ActionFlow(actions: [self] + flow.actions)
-    }
+public protocol Action {
+    /**
+     When an action's side effects fail, this method is called to transform
+     the resulting error into another action (e.g. `.error(Error)`).
+     */
+    func transform(error: Error) -> TransfromErrorResult<Self>
 }
 
 /**
- A chain of actions sent to services one after the other
+ The result of `transform(error:)` function.
  */
-public struct ActionFlow<A: Action> {
-    public static func single(action: A) -> ActionFlow<A> {
-        ActionFlow<A>(actions: [action])
-    }
+public enum TransfromErrorResult<A> where A: Action {
+    /// No action will be dispatched after the failure.
+    case none
+    /// `action` will be dispatched after the failure.
+    case to(action: A)
+}
 
-    public static var noop: ActionFlow<A> {
-        ActionFlow<A>(actions: [])
-    }
-
-    /// All the actions in this flow in the execution order.
-    public var actions: [A] = []
-
-    init(actions: [A]) {
-        self.actions = actions
-    }
-
-    /// Concatenate this chain with another.
-    public func then(_ other: ActionFlow) -> ActionFlow {
-        ActionFlow(actions: actions + other.actions)
-    }
-
-    /// Append a new action after this chain of actions.
-    public func then(_ action: A) -> ActionFlow {
-        ActionFlow(actions: actions + [action])
+internal struct AnyAction {
+    let base: Any
+    init<A>(_ action: A) where A: Action {
+        base = action
     }
 }
