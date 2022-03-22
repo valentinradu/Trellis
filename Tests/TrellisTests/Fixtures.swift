@@ -49,8 +49,7 @@ enum AccountService {
             }
         case .error:
             return .noop
-        case let .newSession(email):
-            print(email)
+        case .newSession:
             return .noop
         }
     }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public actor Store<State>: ObservableObject {
+public actor Store<State> {
     public private(set) var state: State
 
     public init(_ state: State) {
@@ -15,7 +15,6 @@ public actor Store<State>: ObservableObject {
     }
 
     internal func update<T>(_ closure: (inout State) -> T) -> T {
-        objectWillChange.send()
         return closure(&state)
     }
 }
@@ -49,7 +48,7 @@ public struct Reducer<E, S> where E: Actor {
     private let _operation: Operation
     public init<A>(_ operation: @escaping (inout S, A) -> SideEffect<E>) where A: Action {
         _operation = { state, action in
-            if let action = action.base as? A {0
+            if let action = action.base as? A {
                 return .resolve(operation(&state, action))
             }
             return .ignore

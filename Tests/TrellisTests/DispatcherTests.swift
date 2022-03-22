@@ -15,7 +15,7 @@ final class DispatcherTests: XCTestCase {
     private var _store: Store<AccountState>!
 
     override func setUp() async throws {
-        _dispatcher = await Dispatcher()
+        _dispatcher = Dispatcher()
         let (store, service) = await AccountService.bootstrap()
         _service = service
         _store = store
@@ -28,8 +28,6 @@ final class DispatcherTests: XCTestCase {
 
         await _dispatcher.register(service: _service)
         await _dispatcher.send(action: AccountAction.login(email: "a"))
-        await _dispatcher.send(action: AccountAction.login(email: "b"))
-        await _dispatcher.send(action: AccountAction.login(email: "c"))
 
         let result = XCTWaiter.wait(for: [expectation], timeout: 0.1)
         XCTAssertEqual(result, .completed)

@@ -6,10 +6,9 @@
 //
 
 /**
-The dispatcher 
- */
-@MainActor
-public class Dispatcher {
+ The dispatcher
+  */
+public actor Dispatcher {
     private var _services: [ObjectIdentifier: StatefulReducer] = [:]
 
     public func register<E, S>(service: Service<E, S>) {
@@ -22,12 +21,17 @@ public class Dispatcher {
         _services.removeValue(forKey: id)
     }
 
-    public func send<A>(action: A) where A: Action {
-        Task {
-            var resolvers: [StatefulReducerResult.Resolver] = []
+    public func send<A>(action: A) async where A: Action {
+        let resolvers = await withTaskGroup(of: StatefulReducerResult.self,
+                                            returning: [StatefulReducerResult.Resolver].self) { taskGroup in
             for service in _services.values {
-                let result = await service.reduce(action: AnyAction(action))
+                taskGroup.addTask {
+                    await service.reduce(action: AnyAction(action))
+                }
+            }
 
+            var resolvers: [StatefulReducerResult.Resolver] = []
+            for await result in taskGroup {
                 switch result {
                 case .ignore:
                     continue
@@ -36,17 +40,32 @@ public class Dispatcher {
                 }
             }
 
-            for resolver in resolvers {
-                do {
-                    try await resolver(self)
-                } catch {
-                    let result = action.transform(error: error)
-                    
+            return resolvers
+        }
+
+        Task.detached { [weak self] in
+            await withThrowingTaskGroup(of: Void.self) { taskGroup in
+                if let self = self {
+                    for resolver in resolvers {
+                        taskGroup.addTask {
+                            try await resolver(self)
+                        }
+                    }
+                }
+
+                while let result = await taskGroup.nextResult() {
                     switch result {
-                    case .none:
+                    case .success:
                         break
-                    case let .to(action):
-                        send(action: action)
+                    case let .failure(error):
+                        let actionTransform = action.transform(error: error)
+
+                        switch actionTransform {
+                        case .none:
+                            break
+                        case let .to(action):
+                            await self?.send(action: action)
+                        }
                     }
                 }
             }
