@@ -34,10 +34,3 @@ public enum TransfromErrorResult<A> where A: Action {
     /// `action` will be dispatched after the failure.
     case to(action: A)
 }
-
-internal struct AnyAction {
-    let base: Any
-    init<A>(_ action: A) where A: Action {
-        base = action
-    }
-}

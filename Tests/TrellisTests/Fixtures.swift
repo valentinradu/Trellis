@@ -8,56 +8,80 @@
 @testable import Trellis
 import XCTest
 
-enum AccountAction: Action {
-    case login(email: String)
-    case newSession(email: String)
-    case error(Error)
-
-    func transform(error: Error) -> TransfromErrorResult<Self> {
-        .to(action: .error(error))
-    }
+protocol Initializable {
+    init()
 }
 
 enum TestError: Error, Equatable {
     case accessDenied
 }
 
-actor TestEnvironment {}
 
-struct AccountState {
+
+actor TestEnvironment: Initializable {}
+
+enum AccountAction: Action, Equatable {
+    case login(email: String)
+    case newSession
+    case error
+
+    func transform(error: Error) -> TransfromErrorResult<Self> {
+        .to(action: .error)
+    }
+}
+
+struct AccountState: Initializable {
     fileprivate(set) var email: String = ""
 }
 
-enum AccountService {
-    typealias AccountReducer = (inout AccountState, AccountAction) -> SideEffect<TestEnvironment>
-    static func bootstrap() async -> (Store<AccountState>, Service<TestEnvironment, AccountState>) {
-        let store = Store(AccountState())
-        let service = Service(environment: TestEnvironment(),
+typealias AccountServiceBuilder = ServiceBuilder<TestEnvironment, AccountState, AccountAction>
+
+enum NavigationAction: Action, Equatable {
+    case navigate(to: String)
+    case error
+
+    func transform(error: Error) -> TransfromErrorResult<Self> {
+        .to(action: .error)
+    }
+}
+
+struct NavigationState: Initializable {
+    fileprivate(set) var path: String = ""
+}
+
+typealias NavigationServiceBuilder = ServiceBuilder<TestEnvironment, NavigationState, NavigationAction>
+
+enum ServiceBuilder<E, S, A>
+where E: Actor & Initializable, S: Initializable, A: Action
+{
+    static func bootstrap() async -> (E, Store<S>, Service<E, S>) {
+        let store = Store(S())
+        let environment = E()
+        let service = Service(environment: environment,
                               store: store)
-        await service.add(reducer: AccountService.reducer)
-        return (store, service)
+        return (environment, store, service)
     }
 
-    static func reducer(state: inout AccountState,
-                        action: AccountAction) -> SideEffect<TestEnvironment>
+    static func fulfillReducer<A>(action: A) -> Reducer<E, S>
+        where A: Action & Equatable
     {
-        switch action {
-        case let .login(email):
-            state.email = email
-            return SideEffect { dispatcher, _ in
-                await dispatcher.send(action: AccountAction.newSession(email: email))
+        Reducer<E, S> { (_, incomingAction: A) -> _ in
+            SideEffect { _, env in
+                switch action {
+                case incomingAction:
+                    break
+                default:
+                    break
+                }
             }
-        case .error:
-            return .noop
-        case .newSession:
-            return .noop
         }
     }
 
-    static func fulfillReducer(expectation: XCTestExpectation) -> AccountReducer {
-        { _, _ in
-            expectation.fulfill()
-            return .noop
+    static func errorReducer(error: Error) -> Reducer<E, S> {
+        Reducer<E, S> { (_, _: A) -> _ in
+            SideEffect { _, _ in
+                throw error
+            }
         }
     }
 }
