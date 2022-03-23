@@ -9,58 +9,36 @@
  The dispatcher
   */
 public actor Dispatcher {
-    private var _services: [ObjectIdentifier: AnyService] = [:]
+    private var _services: [AnyHashable: Service] = [:]
 
-    func register<E, S>(service: Service<E, S>) {
-        let id = ObjectIdentifier(service)
-        _services[id] = AnyService(service)
+    func register<ID: Hashable>(_ id: ID, service: Service) {
+        _services[id] = service
     }
 
-    func unregister<E, S>(service: Service<E, S>) {
-        let id = ObjectIdentifier(service)
+    func unregister<ID: Hashable>(_ id: ID) {
         _services.removeValue(forKey: id)
     }
 
     public func send<A>(action: A) async where A: Action {
-        let resolvers = await withTaskGroup(of: ActionSideEffectGroup.self) { taskGroup -> [ActionSideEffectGroup] in
+        let resolvers = await withTaskGroup(of: ServiceResult.self) { taskGroup -> [ServiceResult] in
             for service in _services.values {
-                if let service = service.base as? Service<Actor, Any> {
-                    taskGroup.addTask {
-                        await service.reduce(action: action)
-                    }
+                taskGroup.addTask {
+                    await service.send(action: action)
                 }
             }
 
-            return await taskGroup.waitForAll()
+            var result: [ServiceResult] = []
+            for await sideEffect in taskGroup {
+                result.append(sideEffect)
+            }
+            return result
         }
 
-        Task.detached { [weak self] in
+        Task.detached {
             await withThrowingTaskGroup(of: Void.self) { taskGroup in
                 for resolver in resolvers {
-                    if let self = self {
-                        taskGroup.addTask {
-                            try await resolver(self)
-                        }
-                    }
-                    else {
-                        taskGroup.cancelAll()
-                        return
-                    }
-                }
-
-                while let result = await taskGroup.nextResult() {
-                    switch result {
-                    case .success:
-                        break
-                    case let .failure(error):
-                        let actionTransform = action.transform(error: error)
-
-                        switch actionTransform {
-                        case .none:
-                            break
-                        case let .to(action):
-                            await self?.send(action: action)
-                        }
+                    taskGroup.addTask {
+                        await resolver.performSideEffects()
                     }
                 }
             }
