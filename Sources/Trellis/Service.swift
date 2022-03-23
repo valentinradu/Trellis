@@ -11,7 +11,7 @@ public actor Service<E, S> where E: Actor {
     private var _environment: E
     private var _dispatcher: Dispatcher
     private var _store: Store<S>
-    private var _reducers: [AnyReducer]
+    private var _reducers: [Reducer<S>]
 
     public init(dispatcher: Dispatcher,
                 environment: E,
@@ -27,7 +27,7 @@ public actor Service<E, S> where E: Actor {
         let reducer = Reducer(dispatcher: _dispatcher,
                               environment: _environment,
                               operation: operation)
-        _reducers.append(AnyReducer(reducer))
+        _reducers.append(reducer)
     }
 
     public func replace(dispatcher: Dispatcher) async {
@@ -47,15 +47,22 @@ public actor Service<E, S> where E: Actor {
     {
         var sideEffects: [ActionSideEffect] = []
         for reducer in _reducers {
-            if let reducer = reducer.base as? Reducer<A, S> {
-                let sideEffect = await _store.update { (state: inout S) -> ActionSideEffect in
-                    reducer(state: &state, action: action)
-                }
-
-                sideEffects.append(sideEffect)
+            let sideEffect = await _store.update { (state: inout S) -> ActionSideEffect in
+                reducer(state: &state, action: action)
             }
+
+            if case .noop = sideEffect {
+                continue
+            }
+
+            sideEffects.append(sideEffect)
         }
 
-        return ActionSideEffectGroup(sideEffects: sideEffects)
+        if sideEffects.isEmpty {
+            return .noop
+        }
+        else {
+            return ActionSideEffectGroup(sideEffects: sideEffects)
+        }
     }
 }

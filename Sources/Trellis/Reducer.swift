@@ -7,31 +7,33 @@
 
 import Foundation
 
-struct Reducer<A, S> where A: Action {
-    private let _operation: (inout S, A) -> ActionSideEffect
-    init<E>(dispatcher: Dispatcher,
-            environment: E,
-            operation: @escaping (inout S, A) -> SideEffect<E>) where E: Actor
+struct Reducer<S> {
+    private let _operation: (inout S, Any) -> ActionSideEffect
+
+    init<E, A>(dispatcher: Dispatcher,
+               environment: E,
+               operation: @escaping (inout S, A) -> SideEffect<E>)
+        where E: Actor, A: Action
     {
         _operation = { state, action in
-            let sideEffect = operation(&state, action)
-            return ActionSideEffect(dispatcher: dispatcher,
-                                     environment: environment,
-                                     action: action,
-                                     sideEffect: sideEffect)
+            if let action = action as? A
+            {
+                let sideEffect = operation(&state, action)
+                return ActionSideEffect(dispatcher: dispatcher,
+                                        environment: environment,
+                                        action: action,
+                                        sideEffect: sideEffect)
+            }
+            else
+            {
+                return .noop
+            }
         }
     }
 
-    func callAsFunction(state: inout S, action: A) -> ActionSideEffect {
-        _operation(&state, action)
-    }
-}
-
-struct AnyReducer {
-    let base: Any
-    init<A, S>(_ reducer: Reducer<A, S>)
+    func callAsFunction<A>(state: inout S, action: A) -> ActionSideEffect
         where A: Action
     {
-        base = reducer
+        _operation(&state, action)
     }
 }

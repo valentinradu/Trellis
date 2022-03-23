@@ -26,14 +26,15 @@ public enum SideEffect<E> where E: Actor {
     }
 }
 
-struct ActionSideEffect {
-    private let _operation: () async -> Void
+enum ActionSideEffect {
+    case noop
+    case operation(() async -> Void)
     init<E, A>(dispatcher: Dispatcher,
                environment: E,
                action: A,
                sideEffect: SideEffect<E>) where E: Actor, A: Action
     {
-        _operation = {
+        self = .operation {
             do {
                 try await sideEffect(dispatcher: dispatcher,
                                      environment: environment)
@@ -52,14 +53,20 @@ struct ActionSideEffect {
     }
 
     func callAsFunction() async {
-        await _operation()
+        switch self {
+        case .noop:
+            break
+        case let .operation(operation):
+            await operation()
+        }
     }
 }
 
-public actor ActionSideEffectGroup {
-    private let _operation: () async -> Void
+public enum ActionSideEffectGroup {
+    case noop
+    case operation(() async -> Void)
     init(sideEffects: [ActionSideEffect]) {
-        _operation = {
+        self = .operation {
             await withTaskGroup(of: Void.self) { taskGroup in
                 for sideEffect in sideEffects {
                     taskGroup.addTask {
@@ -71,6 +78,11 @@ public actor ActionSideEffectGroup {
     }
 
     public func callAsFunction() async {
-        await _operation()
+        switch self {
+        case .noop:
+            break
+        case let .operation(operation):
+            await operation()
+        }
     }
 }
