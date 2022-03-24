@@ -17,7 +17,7 @@ public struct ServiceBuilder<E, S> where E: Actor
     private let _dispatcher: Dispatcher
     private let _store: Store<S>
     private let _environment: E
-    private let _reducers: [Reducer<S>]
+    private let _reducers: [ReducerContext<S>]
 
     fileprivate init<ID: Hashable>(id: ID,
                                    dispatcher: Dispatcher)
@@ -34,11 +34,11 @@ public struct ServiceBuilder<E, S> where E: Actor
                                    dispatcher: Dispatcher,
                                    store: Store<S>,
                                    environment: E,
-                                   reducers: [Reducer<S>])
+                                   reducers: [ReducerContext<S>])
     {
         _id = id
         _dispatcher = dispatcher
-        _reducers = []
+        _reducers = reducers
         _environment = environment
         _store = store
     }
@@ -63,12 +63,12 @@ public struct ServiceBuilder<E, S> where E: Actor
                               reducers: _reducers)
     }
 
-    public func add<A>(reducer: @escaping (inout S, A) -> SideEffect<E>) -> ServiceBuilder<E, S>
+    public func add<A>(reducer: Reducer<E, S, A>) -> ServiceBuilder<E, S>
         where A: Action
     {
-        let reducer = Reducer(dispatcher: _dispatcher,
-                              environment: _environment,
-                              operation: reducer)
+        let reducer = ReducerContext(dispatcher: _dispatcher,
+                                     environment: _environment,
+                                     reducer: reducer)
         return ServiceBuilder(id: _id,
                               dispatcher: _dispatcher,
                               store: _store,
@@ -76,28 +76,26 @@ public struct ServiceBuilder<E, S> where E: Actor
                               reducers: _reducers + [reducer])
     }
 
-    public func bootstrap() async -> any Service
+    public func bootstrap() async
     {
         let service = StatefulService(store: _store,
                                       reducers: _reducers)
         await _dispatcher.register(_id, service: service)
-        return service
     }
 }
 
-public struct ServicePool
+public struct ServicePool<ID> where ID: Hashable
 {
     public let dispatcher: Dispatcher = .init()
 
-    public func createService<ID>(id: ID) async -> ServiceBuilder<EmptyEnvironment, EmptyState>
+    public func createService(id: ID) -> ServiceBuilder<EmptyEnvironment, EmptyState>
         where ID: Hashable
     {
         ServiceBuilder(id: id,
                        dispatcher: dispatcher)
     }
 
-    public func destroyService<ID>(id: ID) async
-        where ID: Hashable
+    public func destroyService(id: ID) async
     {
         await dispatcher.unregister(id)
     }

@@ -40,3 +40,38 @@ enum NavigationAction: Action, Equatable {
 struct NavigationState {
     fileprivate(set) var path: String = ""
 }
+
+enum Services: Hashable {
+    case account
+    case navigation
+}
+
+extension Reducer {
+    static func fulfill<E, S, A>(_ expectation: XCTestExpectation,
+                                 on searchedAction: A) -> Reducer<E, S, A>
+        where A: Action & Equatable, E: Actor
+    {
+        Reducer<E, S, A>({ _, action in
+            .operation { _, _ in
+                if action == searchedAction {
+                    print("fulfill")
+                    expectation.fulfill()
+                }
+            }
+        })
+    }
+
+    static func error<E, S, A>(_ error: Error,
+                               on searchedAction: A) -> Reducer<E, S, A>
+        where A: Action & Equatable, E: Actor
+    {
+        Reducer<E, S, A>({ _, action in
+            .operation { _, _ in
+                if action == searchedAction {
+                    print("error")
+                    throw error
+                }
+            }
+        })
+    }
+}

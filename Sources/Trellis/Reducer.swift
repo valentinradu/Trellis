@@ -7,10 +7,22 @@
 
 import Foundation
 
+public struct Reducer<E, S, A> where E: Actor, A: Action {
+    public typealias Operation = (inout S, A) -> SideEffect<E>
+    private let _operation: Operation
+    public init(_ operation: @escaping Operation) {
+        _operation = operation
+    }
+
+    public func callAsFunction(state: inout S, action: A) -> SideEffect<E> {
+        _operation(&state, action)
+    }
+}
+
 enum ReducerResult {
     case none
     case sideEffects(() async -> Void)
-    
+
     init<E, A>(dispatcher: Dispatcher,
                environment: E,
                action: A,
@@ -28,8 +40,8 @@ enum ReducerResult {
                 switch actionTransform {
                 case .none:
                     break
-                case let .to(action):
-                    await dispatcher.send(action: action)
+                case let .to(newAction):
+                    await dispatcher.send(action: newAction)
                 }
             }
         }
@@ -45,17 +57,17 @@ enum ReducerResult {
     }
 }
 
-struct Reducer<S> {
+struct ReducerContext<S> {
     private let _operation: (inout S, Any) -> ReducerResult
 
     init<E, A>(dispatcher: Dispatcher,
                environment: E,
-               operation: @escaping (inout S, A) -> SideEffect<E>)
+               reducer: Reducer<E, S, A>)
         where E: Actor, A: Action
     {
         _operation = { state, action in
             if let action = action as? A {
-                let sideEffect = operation(&state, action)
+                let sideEffect = reducer(state: &state, action: action)
                 return ReducerResult(dispatcher: dispatcher,
                                      environment: environment,
                                      action: action,

@@ -7,17 +7,17 @@
 
 import Foundation
 
-public protocol Service {
+protocol Service {
     func send<A>(action: A) async -> ServiceResult
         where A: Action
 }
 
 struct StatefulService<S>: Service {
     private let _store: Store<S>
-    private let _reducers: [Reducer<S>]
+    private let _reducers: [ReducerContext<S>]
 
     init(store: Store<S>,
-         reducers: [Reducer<S>])
+         reducers: [ReducerContext<S>])
     {
         _reducers = reducers
         _store = store
