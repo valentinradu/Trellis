@@ -13,9 +13,9 @@ enum AccountError: Error, Equatable {
 }
 
 actor AccountEnvironment {
-    private(set) var actions: Set<AccountAction> = []
+    private(set) var actions: [AccountAction] = []
     func add(action: AccountAction) {
-        actions.insert(action)
+        actions.append(action)
     }
 }
 

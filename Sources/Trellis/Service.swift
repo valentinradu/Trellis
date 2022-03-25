@@ -8,10 +8,10 @@
 import Foundation
 
 protocol Service {
-    func send<A>(action: A) async -> ServiceResult
-        where A: Action
+    @MainActor func send<A>(action: A) -> ServiceResult where A: Action
 }
 
+@MainActor
 struct StatefulService<S>: Service {
     private let _store: Store<S>
     private let _reducers: [StatefulReducer<S>]
@@ -23,14 +23,13 @@ struct StatefulService<S>: Service {
         _store = store
     }
 
-    func send<A>(action: A) async -> ServiceResult
+    func send<A>(action: A) -> ServiceResult
         where A: Action
     {
         var sideEffects: [ReducerResult] = []
         for reducer in _reducers {
-            let sideEffect = await _store.update { (state: inout S) -> ReducerResult in
-                reducer.reduce(state: &state, action: action)
-            }
+            let sideEffect = reducer.reduce(state: &_store.state,
+                                            action: action)
 
             if !sideEffect.hasSideEffects {
                 continue

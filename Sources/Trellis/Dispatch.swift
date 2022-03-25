@@ -8,8 +8,10 @@
 /**
  The dispatch sends actions to all services and schedules their side effects.
   */
-public actor Dispatch {
+@MainActor
+public class Dispatch {
     private var _services: [AnyHashable: Service] = [:]
+    private var _tasks: [AnyHashable: Task<Void, Never>] = [:]
 
     func register<ID: Hashable>(_ id: ID, service: Service) {
         _services[id] = service
@@ -19,32 +21,41 @@ public actor Dispatch {
         _services.removeValue(forKey: id)
     }
 
-    /// Sends an action to all the services in the pool.
-    public func callAsFunction<A>(action: A) async where A: Action {
-        let resolvers = await withTaskGroup(of: ServiceResult.self) { taskGroup -> [ServiceResult] in
-            for service in _services.values {
-                taskGroup.addTask {
-                    await service.send(action: action)
-                }
-            }
+    func waitForAllTasks() async {
+        for task in _tasks.values {
+            _ = await task.result
+        }
+    }
 
-            var result: [ServiceResult] = []
-            for await sideEffect in taskGroup {
-                if sideEffect.hasSideEffects {
-                    result.append(sideEffect)
-                }
+    /// Sends an action to all the services in the pool.
+    public func callAsFunction<A>(action: A) where A: Action {
+        var results: [ServiceResult] = []
+        for service in _services.values {
+            let result = service.send(action: action)
+
+            if result.hasSideEffects {
+                results.append(result)
             }
-            return result
         }
 
-        if !resolvers.isEmpty {
-            await withThrowingTaskGroup(of: Void.self) { taskGroup in
-                for resolver in resolvers {
-                    taskGroup.addTask {
-                        await resolver()
+        if !results.isEmpty {
+            let key = AnyHashable(action)
+
+            if let olderTask = _tasks[key] {
+                olderTask.cancel()
+            }
+
+            let task = Task { [results] in
+                await withThrowingTaskGroup(of: Void.self) { taskGroup in
+                    for result in results {
+                        taskGroup.addTask {
+                            await result()
+                        }
                     }
                 }
             }
+
+            _tasks[key] = task
         }
     }
 }
@@ -53,7 +64,7 @@ public actor Dispatch {
 import SwiftUI
 
 private struct DispatchKey: EnvironmentKey {
-    static var defaultValue: Dispatch = .init()
+    @MainActor static var defaultValue: Dispatch = .init()
 }
 
 public extension EnvironmentValues {

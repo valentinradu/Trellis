@@ -40,6 +40,7 @@ public struct AnyReducers<S>: ReducerCollection
 }
 
 /// The service builder for bootstrapping services. This is usually created by the service pool.
+@MainActor
 public struct ServiceBuilder<E, S, R>
     where E: Actor, R: ReducerCollection
 {
@@ -124,20 +125,25 @@ public struct ServiceBuilder<E, S, R>
     }
 
     /// Bootstraps everything, creates and registers the service with the dispatch.
-    public func bootstrap() async
+    public func bootstrap()
         where R == AnyReducers<S>
     {
         let service = StatefulService(store: _store,
                                       reducers: _reducers.items)
-        await _dispatch.register(_id, service: service)
+        _dispatch.register(_id, service: service)
     }
 }
 
 /// The service pool is a collection of services that share the same dispatch.
+@MainActor
 public struct ServicePool<ID> where ID: Hashable
 {
     /// The dispatch shared between all the services in the pool.
-    public let dispatch: Dispatch = .init()
+    public let dispatch: Dispatch
+
+    public init() {
+        dispatch = .init()
+    }
 
     /// Starts the process of creating a new service.
     public func build(service: ID) -> ServiceBuilder<EmptyEnvironment, EmptyState, EmptyReducers>
@@ -150,6 +156,6 @@ public struct ServicePool<ID> where ID: Hashable
     /// Removes a service from the pool.
     public func remove(service: ID) async
     {
-        await dispatch.unregister(service)
+        dispatch.unregister(service)
     }
 }

@@ -30,6 +30,7 @@ public struct SideEffect<E> where E: Actor {
 
     func callAsFunction(dispatch: Dispatch, environment: E) async throws {
         guard _hasOperation else { return }
+        try Task.checkCancellation()
         try await _operation(dispatch, environment)
     }
 }

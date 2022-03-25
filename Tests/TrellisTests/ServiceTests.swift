@@ -16,10 +16,10 @@ final class ServiceTests: XCTestCase {
     private var _environment: AccountEnvironment!
 
     override func setUp() async throws {
-        _pool = .init()
-        _store = Store(initialState: AccountState())
+        _pool = await .init()
+        _store = await Store(initialState: AccountState())
         _environment = AccountEnvironment()
-        _builder = _pool
+        _builder = await _pool
             .build(service: .account)
             .set(initialStore: _store)
             .set(environment: _environment)
@@ -30,6 +30,7 @@ final class ServiceTests: XCTestCase {
             .add(reducer: .record)
             .bootstrap()
         await _pool.dispatch(action: AccountAction.login)
+        await _pool.dispatch.waitForAllTasks()
 
         let stateActions = await _store.state.actions
         let environmentActions = await _environment.actions
@@ -49,9 +50,23 @@ final class ServiceTests: XCTestCase {
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
+        await _pool.dispatch.waitForAllTasks()
 
         let environmentActions = await _environment.actions
         XCTAssertEqual(environmentActions, [.login])
+    }
+
+    func testCancelDuplicates() async {
+        await _builder
+            .add(reducer: .record)
+            .bootstrap()
+
+        await _pool.dispatch(action: AccountAction.login)
+        await _pool.dispatch(action: AccountAction.login)
+        await _pool.dispatch.waitForAllTasks()
+
+        let environmentActions = await _environment.actions
+        XCTAssertEqual(environmentActions, [.login, .error])
     }
 
     func testMultipleReducers() async {
@@ -88,6 +103,9 @@ final class ServiceTests: XCTestCase {
             .bootstrap()
         await _pool.remove(service: .account)
         await _pool.dispatch(action: AccountAction.login)
+
+        let actions = await _store.state.actions
+        XCTAssertEqual(actions, [])
     }
 
     func testErrorTransform() async {
@@ -97,5 +115,9 @@ final class ServiceTests: XCTestCase {
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
+        await _pool.dispatch.waitForAllTasks()
+
+        let actions = await _store.state.actions
+        XCTAssertEqual(actions, [.login, .error])
     }
 }

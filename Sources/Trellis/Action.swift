@@ -17,7 +17,7 @@ import Foundation
  }
  ```
  */
-public protocol Action {
+public protocol Action: Hashable {
     /**
      When an action's side effect fails, this method is called to transform
      the resulting error into another action that gets dispatched forward.
