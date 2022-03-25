@@ -59,7 +59,7 @@ public struct ServiceResult {
             await withTaskGroup(of: Void.self) { taskGroup in
                 for sideEffect in sideEffects {
                     taskGroup.addTask {
-                        await sideEffect.performSideEffects()
+                        await sideEffect()
                     }
                 }
             }
@@ -74,7 +74,7 @@ public struct ServiceResult {
     }
 
     /// Performs all enclosed side effects.
-    public func performSideEffects() async {
+    public func callAsFunction() async {
         guard _hasSideEffects else { return }
         await _sideEffects()
     }

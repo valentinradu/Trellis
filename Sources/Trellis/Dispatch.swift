@@ -6,9 +6,9 @@
 //
 
 /**
- The dispatcher sends actions to all services and schedules their side effects.
+ The dispatch sends actions to all services and schedules their side effects.
   */
-public actor Dispatcher {
+public actor Dispatch {
     private var _services: [AnyHashable: Service] = [:]
 
     func register<ID: Hashable>(_ id: ID, service: Service) {
@@ -20,7 +20,7 @@ public actor Dispatcher {
     }
 
     /// Sends an action to all the services in the pool.
-    public func send<A>(action: A) async where A: Action {
+    public func callAsFunction<A>(action: A) async where A: Action {
         let resolvers = await withTaskGroup(of: ServiceResult.self) { taskGroup -> [ServiceResult] in
             for service in _services.values {
                 taskGroup.addTask {
@@ -41,10 +41,26 @@ public actor Dispatcher {
             await withThrowingTaskGroup(of: Void.self) { taskGroup in
                 for resolver in resolvers {
                     taskGroup.addTask {
-                        await resolver.performSideEffects()
+                        await resolver()
                     }
                 }
             }
         }
     }
 }
+
+#if canImport(SwiftUI)
+import SwiftUI
+
+private struct DispatchKey: EnvironmentKey {
+    static var defaultValue: Dispatch = .init()
+}
+
+public extension EnvironmentValues {
+    var dispatch: Dispatch {
+        set { self[DispatchKey.self] = newValue }
+        get { self[DispatchKey.self] }
+    }
+}
+
+#endif

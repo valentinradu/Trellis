@@ -29,7 +29,7 @@ final class ServiceTests: XCTestCase {
         await _builder
             .add(reducer: .record)
             .bootstrap()
-        await _pool.dispatcher.send(action: AccountAction.login)
+        await _pool.dispatch(action: AccountAction.login)
 
         let stateActions = await _store.state.actions
         let environmentActions = await _environment.actions
@@ -48,7 +48,7 @@ final class ServiceTests: XCTestCase {
             })
             .bootstrap()
 
-        await _pool.dispatcher.send(action: AccountAction.login)
+        await _pool.dispatch(action: AccountAction.login)
 
         let environmentActions = await _environment.actions
         XCTAssertEqual(environmentActions, [.login])
@@ -59,7 +59,7 @@ final class ServiceTests: XCTestCase {
             .add(reducer: .record)
             .add(reducer: .record)
             .bootstrap()
-        await _pool.dispatcher.send(action: AccountAction.login)
+        await _pool.dispatch(action: AccountAction.login)
 
         let actions = await _store.state.actions
         XCTAssertEqual(actions, [.login, .login])
@@ -76,7 +76,7 @@ final class ServiceTests: XCTestCase {
             .add(reducer: .record)
             .bootstrap()
 
-        await _pool.dispatcher.send(action: AccountAction.login)
+        await _pool.dispatch(action: AccountAction.login)
 
         let actions = await _store.state.actions
         XCTAssertEqual(actions, [.login, .login])
@@ -87,7 +87,7 @@ final class ServiceTests: XCTestCase {
             .add(reducer: .record)
             .bootstrap()
         await _pool.remove(service: .account)
-        await _pool.dispatcher.send(action: AccountAction.login)
+        await _pool.dispatch(action: AccountAction.login)
     }
 
     func testErrorTransform() async {
@@ -96,6 +96,6 @@ final class ServiceTests: XCTestCase {
             .add(reducer: .record)
             .bootstrap()
 
-        await _pool.dispatcher.send(action: AccountAction.login)
+        await _pool.dispatch(action: AccountAction.login)
     }
 }

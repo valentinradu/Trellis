@@ -9,7 +9,7 @@ import Foundation
 
 /// Side effects are async reducer operations that don't mutate the state directly.
 public struct SideEffect<E> where E: Actor {
-    public typealias Operation = (Dispatcher, E) async throws -> Void
+    public typealias Operation = (Dispatch, E) async throws -> Void
     public static var none: SideEffect<E> { .init() }
     private let _hasOperation: Bool
     private let _operation: Operation
@@ -28,8 +28,8 @@ public struct SideEffect<E> where E: Actor {
         _hasOperation
     }
 
-    func callAsFunction(dispatcher: Dispatcher, environment: E) async throws {
+    func callAsFunction(dispatch: Dispatch, environment: E) async throws {
         guard _hasOperation else { return }
-        try await _operation(dispatcher, environment)
+        try await _operation(dispatch, environment)
     }
 }

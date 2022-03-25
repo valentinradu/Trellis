@@ -44,30 +44,30 @@ public struct ServiceBuilder<E, S, R>
     where E: Actor, R: ReducerCollection
 {
     private let _id: AnyHashable
-    private let _dispatcher: Dispatcher
+    private let _dispatch: Dispatch
     private let _store: Store<S>
     private let _environment: E
     private let _reducers: R
 
     fileprivate init<ID: Hashable>(id: ID,
-                                   dispatcher: Dispatcher)
+                                   dispatch: Dispatch)
         where S == EmptyState, E == EmptyEnvironment, R == EmptyReducers
     {
         _id = id
-        _dispatcher = dispatcher
+        _dispatch = dispatch
         _reducers = EmptyReducers()
         _environment = EmptyEnvironment()
         _store = Store(initialState: EmptyState())
     }
 
     fileprivate init<ID: Hashable>(id: ID,
-                                   dispatcher: Dispatcher,
+                                   dispatch: Dispatch,
                                    store: Store<S>,
                                    environment: E,
                                    reducers: R)
     {
         _id = id
-        _dispatcher = dispatcher
+        _dispatch = dispatch
         _reducers = reducers
         _environment = environment
         _store = store
@@ -78,7 +78,7 @@ public struct ServiceBuilder<E, S, R>
         where S == EmptyState, R == EmptyReducers
     {
         ServiceBuilder<E, IS, AnyReducers<IS>>(id: _id,
-                                               dispatcher: _dispatcher,
+                                               dispatch: _dispatch,
                                                store: initialStore,
                                                environment: _environment,
                                                reducers: AnyReducers())
@@ -89,7 +89,7 @@ public struct ServiceBuilder<E, S, R>
         where E == EmptyEnvironment, NE: Actor
     {
         ServiceBuilder<NE, S, R>(id: _id,
-                                 dispatcher: _dispatcher,
+                                 dispatch: _dispatch,
                                  store: _store,
                                  environment: environment,
                                  reducers: _reducers)
@@ -99,11 +99,11 @@ public struct ServiceBuilder<E, S, R>
     public func add<A>(reducer: Reducer<E, S, A>) -> ServiceBuilder<E, S, R>
         where A: Action, R == AnyReducers<S>
     {
-        let reducer = StatefulReducer(dispatcher: _dispatcher,
+        let reducer = StatefulReducer(dispatch: _dispatch,
                                       environment: _environment,
                                       reducer: reducer)
         return ServiceBuilder(id: _id,
-                              dispatcher: _dispatcher,
+                              dispatch: _dispatch,
                               store: _store,
                               environment: _environment,
                               reducers: _reducers + reducer)
@@ -113,43 +113,43 @@ public struct ServiceBuilder<E, S, R>
     public func add<A>(reducer: Reducer<E, S, A>) -> ServiceBuilder<E, S, AnyReducers<S>>
         where A: Action, R == EmptyReducers
     {
-        let reducer = StatefulReducer(dispatcher: _dispatcher,
+        let reducer = StatefulReducer(dispatch: _dispatch,
                                       environment: _environment,
                                       reducer: reducer)
         return ServiceBuilder<E, S, AnyReducers<S>>(id: _id,
-                                                    dispatcher: _dispatcher,
+                                                    dispatch: _dispatch,
                                                     store: _store,
                                                     environment: _environment,
                                                     reducers: AnyReducers([reducer]))
     }
 
-    /// Bootstraps everything, creates and registers the service with the dispatcher.
+    /// Bootstraps everything, creates and registers the service with the dispatch.
     public func bootstrap() async
         where R == AnyReducers<S>
     {
         let service = StatefulService(store: _store,
                                       reducers: _reducers.items)
-        await _dispatcher.register(_id, service: service)
+        await _dispatch.register(_id, service: service)
     }
 }
 
-/// The service pool is a collection of services that share the same dispatcher.
+/// The service pool is a collection of services that share the same dispatch.
 public struct ServicePool<ID> where ID: Hashable
 {
-    /// The dispatcher shared between all the services in the pool.
-    public let dispatcher: Dispatcher = .init()
+    /// The dispatch shared between all the services in the pool.
+    public let dispatch: Dispatch = .init()
 
     /// Starts the process of creating a new service.
     public func build(service: ID) -> ServiceBuilder<EmptyEnvironment, EmptyState, EmptyReducers>
         where ID: Hashable
     {
         ServiceBuilder(id: service,
-                       dispatcher: dispatcher)
+                       dispatch: dispatch)
     }
 
     /// Removes a service from the pool.
     public func remove(service: ID) async
     {
-        await dispatcher.unregister(service)
+        await dispatch.unregister(service)
     }
 }

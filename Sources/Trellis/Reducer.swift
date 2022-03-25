@@ -25,7 +25,7 @@ struct ReducerResult {
     private let _operation: () async -> Void
     private let _hasSideEffects: Bool
 
-    init<E, A>(dispatcher: Dispatcher,
+    init<E, A>(dispatch: Dispatch,
                environment: E,
                action: A,
                sideEffect: SideEffect<E>)
@@ -39,7 +39,7 @@ struct ReducerResult {
         
         _operation = {
             do {
-                try await sideEffect(dispatcher: dispatcher,
+                try await sideEffect(dispatch: dispatch,
                                      environment: environment)
             }
             catch {
@@ -49,7 +49,7 @@ struct ReducerResult {
                 case .none:
                     break
                 case let .to(newAction):
-                    await dispatcher.send(action: newAction)
+                    await dispatch(action: newAction)
                 }
             }
         }
@@ -66,7 +66,7 @@ struct ReducerResult {
         _hasSideEffects
     }
 
-    func performSideEffects() async {
+    func callAsFunction() async {
         guard _hasSideEffects else { return }
         await _operation()
     }
@@ -75,7 +75,7 @@ struct ReducerResult {
 struct StatefulReducer<S> {
     private let _operation: (inout S, Any) -> ReducerResult
 
-    init<E, A>(dispatcher: Dispatcher,
+    init<E, A>(dispatch: Dispatch,
                environment: E,
                reducer: Reducer<E, S, A>)
         where E: Actor, A: Action
@@ -83,7 +83,7 @@ struct StatefulReducer<S> {
         _operation = { state, action in
             if let action = action as? A {
                 let sideEffect = reducer(state: &state, action: action)
-                return ReducerResult(dispatcher: dispatcher,
+                return ReducerResult(dispatch: dispatch,
                                      environment: environment,
                                      action: action,
                                      sideEffect: sideEffect)
