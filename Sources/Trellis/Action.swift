@@ -25,6 +25,12 @@ public protocol Action {
     func transform(error: Error) -> TransfromErrorResult<Self>
 }
 
+public extension Action {
+    func transform(error: Error) -> TransfromErrorResult<Self> {
+        .none
+    }
+}
+
 /**
  The result of `transform(error:)` function.
  */
