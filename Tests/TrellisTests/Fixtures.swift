@@ -8,15 +8,19 @@
 @testable import Trellis
 import XCTest
 
-enum TestError: Error, Equatable {
+enum AccountError: Error, Equatable {
     case accessDenied
 }
 
-actor TestEnvironment {}
+actor AccountEnvironment {
+    private(set) var actions: Set<AccountAction> = []
+    func add(action: AccountAction) {
+        actions.insert(action)
+    }
+}
 
 enum AccountAction: Action, Equatable {
-    case login(email: String)
-    case newSession
+    case login
     case error
 
     func transform(error: Error) -> TransfromErrorResult<Self> {
@@ -24,54 +28,42 @@ enum AccountAction: Action, Equatable {
     }
 }
 
-struct AccountState {
-    fileprivate(set) var email: String = ""
-}
-
-enum NavigationAction: Action, Equatable {
-    case navigate(to: String)
-    case error
-
-    func transform(error: Error) -> TransfromErrorResult<Self> {
-        .to(action: .error)
-    }
-}
-
-struct NavigationState {
-    fileprivate(set) var path: String = ""
+class AccountState {
+    var actions: [AccountAction] = []
 }
 
 enum Services: Hashable {
     case account
-    case navigation
+    case account2
 }
 
+typealias AccountReducer = Reducer<AccountEnvironment, AccountState, AccountAction>
+
 extension Reducer {
-    static func fulfill<E, S, A>(_ expectation: XCTestExpectation,
-                                 on searchedAction: A) -> Reducer<E, S, A>
-        where A: Action & Equatable, E: Actor
-    {
-        Reducer<E, S, A>({ _, action in
-            .operation { _, _ in
-                if action == searchedAction {
-                    print("fulfill")
-                    expectation.fulfill()
-                }
+    static var record: AccountReducer {
+        AccountReducer { state, action in
+            state.actions.append(action)
+            return SideEffect { _, env in
+                await env.add(action: action)
             }
-        })
+        }
     }
 
-    static func error<E, S, A>(_ error: Error,
-                               on searchedAction: A) -> Reducer<E, S, A>
-        where A: Action & Equatable, E: Actor
+    static func error(_ error: AccountError,
+                      on searchedAction: AccountAction) -> AccountReducer
     {
-        Reducer<E, S, A>({ _, action in
-            .operation { _, _ in
+        AccountReducer { _, action in
+            SideEffect { _, _ in
                 if action == searchedAction {
-                    print("error")
                     throw error
                 }
             }
-        })
+        }
+    }
+
+    static func inert() -> AccountReducer {
+        AccountReducer { _, _ in
+            .none
+        }
     }
 }

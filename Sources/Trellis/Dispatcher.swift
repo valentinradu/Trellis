@@ -6,7 +6,7 @@
 //
 
 /**
- The dispatcher
+ The dispatcher sends actions to all services and schedules their side effects.
   */
 public actor Dispatcher {
     private var _services: [AnyHashable: Service] = [:]
@@ -19,6 +19,7 @@ public actor Dispatcher {
         _services.removeValue(forKey: id)
     }
 
+    /// Sends an action to all the services in the pool.
     public func send<A>(action: A) async where A: Action {
         let resolvers = await withTaskGroup(of: ServiceResult.self) { taskGroup -> [ServiceResult] in
             for service in _services.values {
@@ -29,12 +30,14 @@ public actor Dispatcher {
 
             var result: [ServiceResult] = []
             for await sideEffect in taskGroup {
-                result.append(sideEffect)
+                if sideEffect.hasSideEffects {
+                    result.append(sideEffect)
+                }
             }
             return result
         }
 
-        Task.detached {
+        if !resolvers.isEmpty {
             await withThrowingTaskGroup(of: Void.self) { taskGroup in
                 for resolver in resolvers {
                     taskGroup.addTask {

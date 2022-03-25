@@ -14,10 +14,10 @@ protocol Service {
 
 struct StatefulService<S>: Service {
     private let _store: Store<S>
-    private let _reducers: [ReducerContext<S>]
+    private let _reducers: [StatefulReducer<S>]
 
     init(store: Store<S>,
-         reducers: [ReducerContext<S>])
+         reducers: [StatefulReducer<S>])
     {
         _reducers = reducers
         _store = store
@@ -32,27 +32,30 @@ struct StatefulService<S>: Service {
                 reducer.reduce(state: &state, action: action)
             }
 
-            if case .none = sideEffect {
+            if !sideEffect.hasSideEffects {
                 continue
             }
 
             sideEffects.append(sideEffect)
         }
 
-        if sideEffects.isEmpty {
-            return ServiceResult.none
-        }
-        else {
-            return ServiceResult(sideEffects: sideEffects)
-        }
+        return ServiceResult(sideEffects: sideEffects)
     }
 }
 
-public enum ServiceResult {
-    case none
-    case sideEffects(() async -> Void)
+/// The result encapsulates the side effects of all the services in the pool for a specific action.
+public struct ServiceResult {
+    private let _sideEffects: () async -> Void
+    private let _hasSideEffects: Bool
+
     init(sideEffects: [ReducerResult]) {
-        self = .sideEffects {
+        guard !sideEffects.isEmpty && sideEffects.allSatisfy({ $0.hasSideEffects }) else {
+            _hasSideEffects = false
+            _sideEffects = {}
+            return
+        }
+
+        _sideEffects = {
             await withTaskGroup(of: Void.self) { taskGroup in
                 for sideEffect in sideEffects {
                     taskGroup.addTask {
@@ -61,14 +64,18 @@ public enum ServiceResult {
                 }
             }
         }
+
+        _hasSideEffects = true
     }
 
-    func performSideEffects() async {
-        switch self {
-        case .none:
-            break
-        case let .sideEffects(operation):
-            await operation()
-        }
+    /// Checks if the result has any side effects.
+    public var hasSideEffects: Bool {
+        _hasSideEffects
+    }
+
+    /// Performs all enclosed side effects.
+    public func performSideEffects() async {
+        guard _hasSideEffects else { return }
+        await _sideEffects()
     }
 }

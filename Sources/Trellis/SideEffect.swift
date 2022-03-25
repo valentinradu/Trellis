@@ -7,21 +7,29 @@
 
 import Foundation
 
-public enum SideEffect<E> where E: Actor {
+/// Side effects are async reducer operations that don't mutate the state directly.
+public struct SideEffect<E> where E: Actor {
     public typealias Operation = (Dispatcher, E) async throws -> Void
-    case noop
-    case operation(Operation)
+    public static var none: SideEffect<E> { .init() }
+    private let _hasOperation: Bool
+    private let _operation: Operation
 
     public init(_ operation: @escaping Operation) {
-        self = .operation(operation)
+        _operation = operation
+        _hasOperation = true
+    }
+
+    private init() {
+        _operation = { _, _ in }
+        _hasOperation = false
+    }
+
+    var hasOperation: Bool {
+        _hasOperation
     }
 
     func callAsFunction(dispatcher: Dispatcher, environment: E) async throws {
-        switch self {
-        case .noop:
-            break
-        case let .operation(operation):
-            try await operation(dispatcher, environment)
-        }
+        guard _hasOperation else { return }
+        try await _operation(dispatcher, environment)
     }
 }

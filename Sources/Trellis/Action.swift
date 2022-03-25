@@ -10,7 +10,7 @@ import Foundation
 /**
  Reducers react to **actions** and mutate the state in a predictable way.
  ```
- enum GatekeeperAction: Action {
+ enum AccountAction: Action {
      case login(email: String, password: String)
      case logout
      case resetPassword
@@ -19,8 +19,8 @@ import Foundation
  */
 public protocol Action {
     /**
-     When an action's side effects fail, this method is called to transform
-     the resulting error into another action (e.g. `.error(Error)`).
+     When an action's side effect fails, this method is called to transform
+     the resulting error into another action that gets dispatched forward.
      */
     func transform(error: Error) -> TransfromErrorResult<Self>
 }
@@ -29,8 +29,8 @@ public protocol Action {
  The result of `transform(error:)` function.
  */
 public enum TransfromErrorResult<A> where A: Action {
-    /// No action will be dispatched after the failure.
+    /// No action will be dispatched forward after the failure.
     case none
-    /// `action` will be dispatched after the failure.
+    /// `action` will be dispatched forward after the failure.
     case to(action: A)
 }

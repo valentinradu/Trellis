@@ -11,71 +11,91 @@ import XCTest
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class ServiceTests: XCTestCase {
     private var _pool: ServicePool<Services>!
-    private var _builder: ServiceBuilder<EmptyEnvironment, EmptyState>!
+    private var _builder: ServiceBuilder<AccountEnvironment, AccountState, AnyReducers<AccountState>>!
+    private var _store: Store<AccountState>!
+    private var _environment: AccountEnvironment!
 
     override func setUp() async throws {
         _pool = .init()
-        _builder = _pool.createService(id: .account)
+        _store = Store(initialState: AccountState())
+        _environment = AccountEnvironment()
+        _builder = _pool
+            .build(service: .account)
+            .set(initialStore: _store)
+            .set(environment: _environment)
     }
 
     func testSingleReducer() async {
-        let expectation = XCTestExpectation()
         await _builder
-            .add(reducer: .fulfill(expectation, on: AccountAction.newSession))
+            .add(reducer: .record)
             .bootstrap()
-        await _pool.dispatcher.send(action: AccountAction.newSession)
-        wait(for: [expectation], timeout: 0.1)
+        await _pool.dispatcher.send(action: AccountAction.login)
+
+        let stateActions = await _store.state.actions
+        let environmentActions = await _environment.actions
+        XCTAssertEqual(stateActions, [.login])
+        XCTAssertEqual(environmentActions, [.login])
+    }
+
+    func testStatelessReducer() async {
+        await _pool
+            .build(service: .account)
+            .set(environment: _environment)
+            .add(reducer: Reducer { _, action in
+                SideEffect { _, environment in
+                    await environment.add(action: action)
+                }
+            })
+            .bootstrap()
+
+        await _pool.dispatcher.send(action: AccountAction.login)
+
+        let environmentActions = await _environment.actions
+        XCTAssertEqual(environmentActions, [.login])
     }
 
     func testMultipleReducers() async {
-        let expectation1 = XCTestExpectation()
-        let expectation2 = XCTestExpectation()
         await _builder
-            .add(reducer: .fulfill(expectation1, on: AccountAction.newSession))
-            .add(reducer: .fulfill(expectation2, on: NavigationAction.error))
+            .add(reducer: .record)
+            .add(reducer: .record)
             .bootstrap()
-        await _pool.dispatcher.send(action: AccountAction.newSession)
-        await _pool.dispatcher.send(action: NavigationAction.error)
-        wait(for: [expectation1, expectation2], timeout: 0.1)
+        await _pool.dispatcher.send(action: AccountAction.login)
+
+        let actions = await _store.state.actions
+        XCTAssertEqual(actions, [.login, .login])
     }
 
     func testMultipleServices() async {
-        let expectation1 = XCTestExpectation()
-        let expectation2 = XCTestExpectation()
         await _builder
-            .add(reducer: .fulfill(expectation1, on: AccountAction.newSession))
+            .add(reducer: .record)
             .bootstrap()
         await _pool
-            .createService(id: .navigation)
-            .add(reducer: .fulfill(expectation2, on: NavigationAction.error))
+            .build(service: .account2)
+            .set(initialStore: _store)
+            .set(environment: _environment)
+            .add(reducer: .record)
             .bootstrap()
 
-        await _pool.dispatcher.send(action: AccountAction.newSession)
-        await _pool.dispatcher.send(action: NavigationAction.error)
-        wait(for: [expectation1, expectation2], timeout: 0.1)
+        await _pool.dispatcher.send(action: AccountAction.login)
+
+        let actions = await _store.state.actions
+        XCTAssertEqual(actions, [.login, .login])
     }
 
     func testDestroyService() async {
-        let expectation = XCTestExpectation()
         await _builder
-            .add(reducer: .fulfill(expectation, on: AccountAction.newSession))
+            .add(reducer: .record)
             .bootstrap()
-        await _pool.destroyService(id: .account)
-        await _pool.dispatcher.send(action: AccountAction.newSession)
-        let result = XCTWaiter.wait(for: [expectation],
-                                    timeout: 0.1)
-        XCTAssertEqual(result, .timedOut)
+        await _pool.remove(service: .account)
+        await _pool.dispatcher.send(action: AccountAction.login)
     }
 
     func testErrorTransform() async {
-        let expectation = XCTestExpectation()
         await _builder
-            .add(reducer: .error(TestError.accessDenied, on: AccountAction.newSession))
-            .add(reducer: .fulfill(expectation, on: AccountAction.error))
+            .add(reducer: .error(.accessDenied, on: .login))
+            .add(reducer: .record)
             .bootstrap()
 
-        await _pool.dispatcher.send(action: AccountAction.newSession)
-        wait(for: [expectation], timeout: 0.1)
-        print("fail")
+        await _pool.dispatcher.send(action: AccountAction.login)
     }
 }

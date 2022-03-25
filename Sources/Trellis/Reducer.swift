@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// The reducer wraps the state mutating operation: `(&state, action) -> SideEffect`.
 public struct Reducer<E, S, A> where E: Actor, A: Action {
     public typealias Operation = (inout S, A) -> SideEffect<E>
     private let _operation: Operation
@@ -19,9 +20,10 @@ public struct Reducer<E, S, A> where E: Actor, A: Action {
     }
 }
 
-enum ReducerResult {
-    case none
-    case sideEffects(() async -> Void)
+struct ReducerResult {
+    public static var none: ReducerResult { .init() }
+    private let _operation: () async -> Void
+    private let _hasSideEffects: Bool
 
     init<E, A>(dispatcher: Dispatcher,
                environment: E,
@@ -29,7 +31,13 @@ enum ReducerResult {
                sideEffect: SideEffect<E>)
         where E: Actor, A: Action
     {
-        self = .sideEffects {
+        guard sideEffect.hasOperation else {
+            _operation = {}
+            _hasSideEffects = false
+            return
+        }
+        
+        _operation = {
             do {
                 try await sideEffect(dispatcher: dispatcher,
                                      environment: environment)
@@ -45,19 +53,26 @@ enum ReducerResult {
                 }
             }
         }
+        
+        _hasSideEffects = true
+    }
+    
+    init() {
+        _operation = {}
+        _hasSideEffects = false
+    }
+    
+    var hasSideEffects: Bool {
+        _hasSideEffects
     }
 
     func performSideEffects() async {
-        switch self {
-        case .none:
-            break
-        case let .sideEffects(operation):
-            await operation()
-        }
+        guard _hasSideEffects else { return }
+        await _operation()
     }
 }
 
-struct ReducerContext<S> {
+struct StatefulReducer<S> {
     private let _operation: (inout S, Any) -> ReducerResult
 
     init<E, A>(dispatcher: Dispatcher,
