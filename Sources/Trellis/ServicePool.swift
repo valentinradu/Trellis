@@ -140,7 +140,7 @@ public struct ServicePool<ID> where ID: Hashable
     /// The dispatch function
     public let dispatch: Dispatch
 
-    public init()
+    @MainActor public init()
     {
         dispatch = .init()
     }
@@ -154,11 +154,13 @@ public struct ServicePool<ID> where ID: Hashable
     }
 
     /// Removes a service from the pool.
-    public func remove(service: ID) async {
+    public func remove(service: ID) async
+    {
         await dispatch.unregister(service)
     }
 
-    public func waitForAllTasks() async {
+    public func waitForAllTasks() async
+    {
         await dispatch.waitForAllTasks()
     }
 }

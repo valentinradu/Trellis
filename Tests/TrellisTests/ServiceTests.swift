@@ -16,7 +16,7 @@ final class ServiceTests: XCTestCase {
     private var _environment: AccountEnvironment!
 
     override func setUp() async throws {
-        _pool = .init()
+        _pool = await .init()
         _state = AccountState()
         _environment = AccountEnvironment()
         _builder = _pool
@@ -75,6 +75,7 @@ final class ServiceTests: XCTestCase {
             .add(reducer: .record())
             .bootstrap()
         await _pool.dispatch(action: AccountAction.login)
+        await _pool.waitForAllTasks()
 
         let actions = _state.actions
         XCTAssertEqual(actions, [.login, .login])
@@ -92,6 +93,7 @@ final class ServiceTests: XCTestCase {
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
+        await _pool.waitForAllTasks()
 
         let actions = _state.actions
         XCTAssertEqual(actions, [.login, .login])

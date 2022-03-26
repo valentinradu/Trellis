@@ -47,6 +47,7 @@ extension Reducer {
                 if delay {
                     try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
                 }
+//                print(action)
                 await env.add(action: action)
             }
         }
