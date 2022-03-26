@@ -30,7 +30,7 @@ final class ServiceTests: XCTestCase {
             .add(reducer: .record())
             .bootstrap()
         await _pool.dispatch(action: AccountAction.login)
-        await _pool.dispatch.waitForAllTasks()
+        await _pool.waitForAllTasks()
 
         let stateActions = _state.actions
         let environmentActions = await _environment.actions
@@ -50,7 +50,7 @@ final class ServiceTests: XCTestCase {
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
-        await _pool.dispatch.waitForAllTasks()
+        await _pool.waitForAllTasks()
 
         let environmentActions = await _environment.actions
         XCTAssertEqual(environmentActions, [.login])
@@ -63,7 +63,7 @@ final class ServiceTests: XCTestCase {
 
         await _pool.dispatch(action: AccountAction.login)
         await _pool.dispatch(action: AccountAction.login)
-        await _pool.dispatch.waitForAllTasks()
+        await _pool.waitForAllTasks()
 
         let environmentActions = await _environment.actions
         XCTAssertEqual(Set(environmentActions), Set([.login, .error]))
@@ -115,7 +115,7 @@ final class ServiceTests: XCTestCase {
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
-        await _pool.dispatch.waitForAllTasks()
+        await _pool.waitForAllTasks()
 
         let actions = _state.actions
         XCTAssertEqual(actions, [.login, .error])

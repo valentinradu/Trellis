@@ -137,12 +137,11 @@ public struct ServiceBuilder<E, S, R>
 /// The service pool is a collection of services that share the same dispatch.
 public struct ServicePool<ID> where ID: Hashable
 {
-    /// The dispatch shared between all the services in the pool.
-    public let dispatch: Dispatch
+    private let _dispatch: Dispatch
 
     public init()
     {
-        dispatch = .init()
+        _dispatch = .init()
     }
 
     /// Starts the process of creating a new service.
@@ -150,12 +149,21 @@ public struct ServicePool<ID> where ID: Hashable
         where ID: Hashable
     {
         ServiceBuilder(id: service,
-                       dispatch: dispatch)
+                       dispatch: _dispatch)
     }
 
     /// Removes a service from the pool.
     public func remove(service: ID) async
     {
-        await dispatch.unregister(service)
+        await _dispatch.unregister(service)
+    }
+    
+    /// The dispatch function
+    public func dispatch<A>(action: A) async where A: Action {
+        await _dispatch(action: action)
+    }
+    
+    public func waitForAllTasks() async {
+        await _dispatch.waitForAllTasks()
     }
 }
