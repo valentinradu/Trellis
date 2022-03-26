@@ -16,7 +16,7 @@ final class ServiceTests: XCTestCase {
     private var _environment: AccountEnvironment!
 
     override func setUp() async throws {
-        _pool = await .init()
+        _pool = .init()
         _state = AccountState()
         _environment = AccountEnvironment()
         _builder = _pool

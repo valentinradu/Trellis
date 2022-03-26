@@ -140,7 +140,7 @@ public struct ServicePool<ID> where ID: Hashable
     /// The dispatch function
     public let dispatch: Dispatch
 
-    @MainActor public init()
+    public init()
     {
         dispatch = .init()
     }

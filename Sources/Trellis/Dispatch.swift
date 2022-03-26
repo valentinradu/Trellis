@@ -8,10 +8,9 @@
 /**
  The dispatch sends actions to all services and schedules their side effects.
   */
-@MainActor
-public class Dispatch {
+public actor Dispatch {
     private var _services: [AnyHashable: Service] = [:]
-    private var _tasks: [AnyHashable: Task<Void, Never>] = [:]
+    @MainActor private var _tasks: [AnyHashable: Task<Void, Never>] = [:]
 
     func register<ID: Hashable>(_ id: ID, service: Service) {
         _services[id] = service
@@ -21,6 +20,7 @@ public class Dispatch {
         _services.removeValue(forKey: id)
     }
 
+    @MainActor
     func waitForAllTasks() async {
         for task in _tasks.values {
             _ = await task.result
@@ -28,18 +28,22 @@ public class Dispatch {
     }
 
     /// Sends an action to all the services in the pool.
+    @MainActor
     public func callAsFunction<A>(action: A) where A: Action {
         let key = AnyHashable(action)
         if let olderTask = _tasks[key] {
             olderTask.cancel()
         }
-        let task = Task {
-            var results: [ServiceResult] = []
-            for service in _services.values {
-                let result = await service.send(action: action)
 
-                if result.hasSideEffects {
-                    results.append(result)
+        let task = Task { [weak self] in
+            var results: [ServiceResult] = []
+            if let services = await self?._services.values {
+                for service in services {
+                    let result = await service.send(action: action)
+
+                    if result.hasSideEffects {
+                        results.append(result)
+                    }
                 }
             }
 
@@ -52,6 +56,8 @@ public class Dispatch {
                     }
                 }
             }
+
+            self?._tasks.removeValue(forKey: key)
         }
         _tasks[key] = task
     }
@@ -61,7 +67,7 @@ public class Dispatch {
 import SwiftUI
 
 private struct DispatchKey: EnvironmentKey {
-    @MainActor static var defaultValue: Dispatch = .init()
+    static var defaultValue: Dispatch = .init()
 }
 
 public extension EnvironmentValues {
