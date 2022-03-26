@@ -14,7 +14,7 @@ public protocol ReducerCollection {}
 public actor EmptyEnvironment {}
 
 /// The state for services with no explicit state.
-public struct EmptyState {}
+public class EmptyState: ObservableObject {}
 
 /// The empty collection of reducers for services with no explicit reducers.
 public struct EmptyReducers: ReducerCollection {}
@@ -40,13 +40,12 @@ public struct AnyReducers<S>: ReducerCollection
 }
 
 /// The service builder for bootstrapping services. This is usually created by the service pool.
-@MainActor
 public struct ServiceBuilder<E, S, R>
-    where E: Actor, R: ReducerCollection
+    where E: Actor, R: ReducerCollection, S: ObservableObject
 {
     private let _id: AnyHashable
     private let _dispatch: Dispatch
-    private let _store: Store<S>
+    private let _state: S
     private let _environment: E
     private let _reducers: R
 
@@ -58,12 +57,12 @@ public struct ServiceBuilder<E, S, R>
         _dispatch = dispatch
         _reducers = EmptyReducers()
         _environment = EmptyEnvironment()
-        _store = Store(initialState: EmptyState())
+        _state = EmptyState()
     }
 
     fileprivate init<ID: Hashable>(id: ID,
                                    dispatch: Dispatch,
-                                   store: Store<S>,
+                                   state: S,
                                    environment: E,
                                    reducers: R)
     {
@@ -71,16 +70,16 @@ public struct ServiceBuilder<E, S, R>
         _dispatch = dispatch
         _reducers = reducers
         _environment = environment
-        _store = store
+        _state = state
     }
 
-    /// Set the initial store for the service.
+    /// Set the initial state for the service.
     public func set<IS>(initialState: IS) -> ServiceBuilder<E, IS, AnyReducers<IS>>
         where S == EmptyState, R == EmptyReducers
     {
         ServiceBuilder<E, IS, AnyReducers<IS>>(id: _id,
                                                dispatch: _dispatch,
-                                               store: Store(initialState: initialState),
+                                               state: initialState,
                                                environment: _environment,
                                                reducers: AnyReducers())
     }
@@ -91,7 +90,7 @@ public struct ServiceBuilder<E, S, R>
     {
         ServiceBuilder<NE, S, R>(id: _id,
                                  dispatch: _dispatch,
-                                 store: _store,
+                                 state: _state,
                                  environment: environment,
                                  reducers: _reducers)
     }
@@ -105,7 +104,7 @@ public struct ServiceBuilder<E, S, R>
                                       reducer: reducer)
         return ServiceBuilder(id: _id,
                               dispatch: _dispatch,
-                              store: _store,
+                              state: _state,
                               environment: _environment,
                               reducers: _reducers + reducer)
     }
@@ -119,23 +118,23 @@ public struct ServiceBuilder<E, S, R>
                                       reducer: reducer)
         return ServiceBuilder<E, S, AnyReducers<S>>(id: _id,
                                                     dispatch: _dispatch,
-                                                    store: _store,
+                                                    state: _state,
                                                     environment: _environment,
                                                     reducers: AnyReducers([reducer]))
     }
 
     /// Bootstraps everything, creates and registers the service with the dispatch.
-    public func bootstrap()
+    
+    public func bootstrap() async
         where R == AnyReducers<S>
     {
-        let service = StatefulService(store: _store,
+        let service = StatefulService(state: _state,
                                       reducers: _reducers.items)
-        _dispatch.register(_id, service: service)
+        await _dispatch.register(_id, service: service)
     }
 }
 
 /// The service pool is a collection of services that share the same dispatch.
-@MainActor
 public struct ServicePool<ID> where ID: Hashable
 {
     /// The dispatch shared between all the services in the pool.
@@ -157,6 +156,6 @@ public struct ServicePool<ID> where ID: Hashable
     /// Removes a service from the pool.
     public func remove(service: ID) async
     {
-        dispatch.unregister(service)
+        await dispatch.unregister(service)
     }
 }

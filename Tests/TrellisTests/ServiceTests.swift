@@ -16,10 +16,10 @@ final class ServiceTests: XCTestCase {
     private var _environment: AccountEnvironment!
 
     override func setUp() async throws {
-        _pool = await .init()
+        _pool = .init()
         _state = AccountState()
         _environment = AccountEnvironment()
-        _builder = await _pool
+        _builder = _pool
             .build(service: .account)
             .set(initialState: _state)
             .set(environment: _environment)
@@ -27,7 +27,7 @@ final class ServiceTests: XCTestCase {
 
     func testSingleReducer() async {
         await _builder
-            .add(reducer: .record)
+            .add(reducer: .record())
             .bootstrap()
         await _pool.dispatch(action: AccountAction.login)
         await _pool.dispatch.waitForAllTasks()
@@ -58,7 +58,7 @@ final class ServiceTests: XCTestCase {
 
     func testCancelDuplicates() async {
         await _builder
-            .add(reducer: .record)
+            .add(reducer: .record(delay: true))
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
@@ -66,13 +66,13 @@ final class ServiceTests: XCTestCase {
         await _pool.dispatch.waitForAllTasks()
 
         let environmentActions = await _environment.actions
-        XCTAssertEqual(environmentActions, [.login, .error])
+        XCTAssertEqual(Set(environmentActions), Set([.login, .error]))
     }
 
     func testMultipleReducers() async {
         await _builder
-            .add(reducer: .record)
-            .add(reducer: .record)
+            .add(reducer: .record())
+            .add(reducer: .record())
             .bootstrap()
         await _pool.dispatch(action: AccountAction.login)
 
@@ -82,13 +82,13 @@ final class ServiceTests: XCTestCase {
 
     func testMultipleServices() async {
         await _builder
-            .add(reducer: .record)
+            .add(reducer: .record())
             .bootstrap()
         await _pool
             .build(service: .account2)
             .set(initialState: _state)
             .set(environment: _environment)
-            .add(reducer: .record)
+            .add(reducer: .record())
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
@@ -99,7 +99,7 @@ final class ServiceTests: XCTestCase {
 
     func testDestroyService() async {
         await _builder
-            .add(reducer: .record)
+            .add(reducer: .record())
             .bootstrap()
         await _pool.remove(service: .account)
         await _pool.dispatch(action: AccountAction.login)
@@ -111,7 +111,7 @@ final class ServiceTests: XCTestCase {
     func testErrorTransform() async {
         await _builder
             .add(reducer: .error(.accessDenied, on: .login))
-            .add(reducer: .record)
+            .add(reducer: .record())
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)

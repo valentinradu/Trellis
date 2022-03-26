@@ -28,8 +28,8 @@ enum AccountAction: Action, Equatable {
     }
 }
 
-class AccountState {
-    var actions: [AccountAction] = []
+class AccountState: ObservableObject {
+    @Published var actions: [AccountAction] = []
 }
 
 enum Services: Hashable {
@@ -40,10 +40,13 @@ enum Services: Hashable {
 typealias AccountReducer = Reducer<AccountEnvironment, AccountState, AccountAction>
 
 extension Reducer {
-    static var record: AccountReducer {
+    static func record(delay: Bool = false) -> AccountReducer {
         AccountReducer { state, action in
             state.actions.append(action)
             return SideEffect { _, env in
+                if delay {
+                    try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
+                }
                 await env.add(action: action)
             }
         }

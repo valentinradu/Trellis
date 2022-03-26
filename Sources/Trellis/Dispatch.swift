@@ -8,8 +8,7 @@
 /**
  The dispatch sends actions to all services and schedules their side effects.
   */
-@MainActor
-public class Dispatch {
+public actor Dispatch {
     private var _services: [AnyHashable: Service] = [:]
     private var _tasks: [AnyHashable: Task<Void, Never>] = [:]
 
@@ -28,10 +27,10 @@ public class Dispatch {
     }
 
     /// Sends an action to all the services in the pool.
-    public func callAsFunction<A>(action: A) where A: Action {
+    public func callAsFunction<A>(action: A) async where A: Action {
         var results: [ServiceResult] = []
         for service in _services.values {
-            let result = service.send(action: action)
+            let result = await service.send(action: action)
 
             if result.hasSideEffects {
                 results.append(result)
@@ -64,7 +63,7 @@ public class Dispatch {
 import SwiftUI
 
 private struct DispatchKey: EnvironmentKey {
-    @MainActor static var defaultValue: Dispatch = .init()
+    static var defaultValue: Dispatch = .init()
 }
 
 public extension EnvironmentValues {

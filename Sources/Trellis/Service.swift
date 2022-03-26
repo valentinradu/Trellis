@@ -7,29 +7,43 @@
 
 import Foundation
 
-protocol Service {
-    @MainActor func send<A>(action: A) -> ServiceResult where A: Action
+class Store<State> where State: ObservableObject {
+    private var state: State
+
+    /// Initiates the store with a state.
+    init(initialState: State) {
+        state = initialState
+    }
+
+    @MainActor func update<T>(_ closure: (inout State) -> T) -> T {
+        closure(&state)
+    }
 }
 
-@MainActor
-struct StatefulService<S>: Service {
+protocol Service {
+    func send<A>(action: A) async -> ServiceResult where A: Action
+}
+
+struct StatefulService<S>: Service where S: ObservableObject {
     private let _store: Store<S>
     private let _reducers: [StatefulReducer<S>]
 
-    init(store: Store<S>,
+    init(state: S,
          reducers: [StatefulReducer<S>])
     {
         _reducers = reducers
-        _store = store
+        _store = Store(initialState: state)
     }
 
-    func send<A>(action: A) -> ServiceResult
+    func send<A>(action: A) async -> ServiceResult
         where A: Action
     {
         var sideEffects: [ReducerResult] = []
         for reducer in _reducers {
-            let sideEffect = reducer.reduce(state: &_store.state,
-                                            action: action)
+            let sideEffect = await _store.update { state in
+                reducer.reduce(state: &state,
+                               action: action)
+            }
 
             if !sideEffect.hasSideEffects {
                 continue
