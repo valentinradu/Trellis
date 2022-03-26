@@ -8,9 +8,8 @@
 import Combine
 import Foundation
 
-/// The store ensures synchronized access to the state
 @MainActor
-public class Store<State> {
+class Store<State> {
     public internal(set) var state: State
 
     /// Initiates the store with a state.

@@ -75,12 +75,12 @@ public struct ServiceBuilder<E, S, R>
     }
 
     /// Set the initial store for the service.
-    public func set<IS>(initialStore: Store<IS>) -> ServiceBuilder<E, IS, AnyReducers<IS>>
+    public func set<IS>(initialState: IS) -> ServiceBuilder<E, IS, AnyReducers<IS>>
         where S == EmptyState, R == EmptyReducers
     {
         ServiceBuilder<E, IS, AnyReducers<IS>>(id: _id,
                                                dispatch: _dispatch,
-                                               store: initialStore,
+                                               store: Store(initialState: initialState),
                                                environment: _environment,
                                                reducers: AnyReducers())
     }
@@ -141,7 +141,8 @@ public struct ServicePool<ID> where ID: Hashable
     /// The dispatch shared between all the services in the pool.
     public let dispatch: Dispatch
 
-    public init() {
+    public init()
+    {
         dispatch = .init()
     }
 

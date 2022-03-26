@@ -12,16 +12,16 @@ import XCTest
 final class ServiceTests: XCTestCase {
     private var _pool: ServicePool<Services>!
     private var _builder: ServiceBuilder<AccountEnvironment, AccountState, AnyReducers<AccountState>>!
-    private var _store: Store<AccountState>!
+    private var _state: AccountState!
     private var _environment: AccountEnvironment!
 
     override func setUp() async throws {
         _pool = await .init()
-        _store = await Store(initialState: AccountState())
+        _state = AccountState()
         _environment = AccountEnvironment()
         _builder = await _pool
             .build(service: .account)
-            .set(initialStore: _store)
+            .set(initialState: _state)
             .set(environment: _environment)
     }
 
@@ -32,7 +32,7 @@ final class ServiceTests: XCTestCase {
         await _pool.dispatch(action: AccountAction.login)
         await _pool.dispatch.waitForAllTasks()
 
-        let stateActions = await _store.state.actions
+        let stateActions = _state.actions
         let environmentActions = await _environment.actions
         XCTAssertEqual(stateActions, [.login])
         XCTAssertEqual(environmentActions, [.login])
@@ -76,7 +76,7 @@ final class ServiceTests: XCTestCase {
             .bootstrap()
         await _pool.dispatch(action: AccountAction.login)
 
-        let actions = await _store.state.actions
+        let actions = _state.actions
         XCTAssertEqual(actions, [.login, .login])
     }
 
@@ -86,14 +86,14 @@ final class ServiceTests: XCTestCase {
             .bootstrap()
         await _pool
             .build(service: .account2)
-            .set(initialStore: _store)
+            .set(initialState: _state)
             .set(environment: _environment)
             .add(reducer: .record)
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
 
-        let actions = await _store.state.actions
+        let actions = _state.actions
         XCTAssertEqual(actions, [.login, .login])
     }
 
@@ -104,7 +104,7 @@ final class ServiceTests: XCTestCase {
         await _pool.remove(service: .account)
         await _pool.dispatch(action: AccountAction.login)
 
-        let actions = await _store.state.actions
+        let actions = _state.actions
         XCTAssertEqual(actions, [])
     }
 
@@ -117,7 +117,7 @@ final class ServiceTests: XCTestCase {
         await _pool.dispatch(action: AccountAction.login)
         await _pool.dispatch.waitForAllTasks()
 
-        let actions = await _store.state.actions
+        let actions = _state.actions
         XCTAssertEqual(actions, [.login, .error])
     }
 }
