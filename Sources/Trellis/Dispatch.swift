@@ -58,3 +58,19 @@ public actor Dispatch {
         }
     }
 }
+
+#if canImport(SwiftUI)
+import SwiftUI
+
+private struct DispatchKey: EnvironmentKey {
+    @MainActor static var defaultValue: Dispatch = .init()
+}
+
+public extension EnvironmentValues {
+    var dispatch: Dispatch {
+        set { self[DispatchKey.self] = newValue }
+        get { self[DispatchKey.self] }
+    }
+}
+
+#endif

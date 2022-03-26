@@ -124,7 +124,7 @@ public struct ServiceBuilder<E, S, R>
     }
 
     /// Bootstraps everything, creates and registers the service with the dispatch.
-    
+
     public func bootstrap() async
         where R == AnyReducers<S>
     {
@@ -137,11 +137,12 @@ public struct ServiceBuilder<E, S, R>
 /// The service pool is a collection of services that share the same dispatch.
 public struct ServicePool<ID> where ID: Hashable
 {
-    private let _dispatch: Dispatch
+    /// The dispatch function
+    public let dispatch: Dispatch
 
     public init()
     {
-        _dispatch = .init()
+        dispatch = .init()
     }
 
     /// Starts the process of creating a new service.
@@ -149,21 +150,15 @@ public struct ServicePool<ID> where ID: Hashable
         where ID: Hashable
     {
         ServiceBuilder(id: service,
-                       dispatch: _dispatch)
+                       dispatch: dispatch)
     }
 
     /// Removes a service from the pool.
-    public func remove(service: ID) async
-    {
-        await _dispatch.unregister(service)
+    public func remove(service: ID) async {
+        await dispatch.unregister(service)
     }
-    
-    /// The dispatch function
-    public func dispatch<A>(action: A) async where A: Action {
-        await _dispatch(action: action)
-    }
-    
+
     public func waitForAllTasks() async {
-        await _dispatch.waitForAllTasks()
+        await dispatch.waitForAllTasks()
     }
 }
