@@ -34,6 +34,8 @@ final class ServiceTests: XCTestCase {
 
         let stateActions = _state.actions
         let environmentActions = await _environment.actions
+        let isEmpty = await _pool.dispatch.isEmpty
+        XCTAssertTrue(isEmpty)
         XCTAssertEqual(stateActions, [.login])
         XCTAssertEqual(environmentActions, [.login])
     }

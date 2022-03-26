@@ -27,6 +27,11 @@ public actor Dispatch {
         }
     }
 
+    @MainActor
+    var isEmpty: Bool {
+        _tasks.isEmpty
+    }
+
     /// Sends an action to all the services in the pool.
     @MainActor
     public func callAsFunction<A>(action: A) where A: Action {
