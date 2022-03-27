@@ -9,7 +9,7 @@ Trellis' philosophy is to be as non-intrusive as possible, exposing a single fun
 Built on Swift concurrency model.
 
 ## Index
-* [Installation]
+* [Installation](#installation)
 * [Getting started](#getting-started)
 * [Concurrency](#concurrency)
 * [Testing](#testing)
