@@ -6,7 +6,7 @@
 
 Trellis is a lightweight architectural framework inspired by Redux and the microservices architecture. It helps write clean, predictable, and above all, testable applications in Swift by favoring unidirectional data flow, separation of concerns and business logic encapsulation.
 Trellis' philosophy is to be as non-intrusive as possible, exposing a single function (`dispatch`) to the presentation layer and having a very limited API surface otherwise.
-Built on Swift 5.6+ concurrency model.
+Built on Swift concurrency model.
 
 ## Index
 * [Installation]
@@ -183,7 +183,7 @@ For small apps, it could make sense to start with a single service and a couple 
 
 ## Concurrency
 
-Trellis uses the Swift 5.6 concurrency model and guarantees that:
+Trellis uses the Swift concurrency model and guarantees that:
 
 - all calls that mutate the state will be made on the main thread
 - the `dispatch` function is reentrant and can be used from any thread
