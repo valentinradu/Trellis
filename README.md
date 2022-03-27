@@ -21,7 +21,7 @@ Using Swift Package Manager:
 ```
 .package(name: "Trellis",
          url: "https://github.com/valentinradu/Trellis.git",
-         .upToNextMinor(from: "1.0.0"))
+         .upToNextMinor(from: "0.1.0"))
 ```
 
 ## Getting started
