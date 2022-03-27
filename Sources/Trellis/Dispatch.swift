@@ -8,7 +8,25 @@
 /**
  The dispatch sends actions to all services and schedules their side effects.
   */
-public actor Dispatch {
+public protocol Dispatch {
+    @MainActor
+    func callAsFunction<A>(action: A) where A: Action
+}
+
+/**
+ A dispatch that records actions.
+ */
+public class RecordDispatch: Dispatch {
+    @MainActor
+    public private(set) var actions: [AnyAction] = []
+
+    @MainActor
+    public func callAsFunction<A>(action: A) where A: Action {
+        actions.append(AnyAction(action))
+    }
+}
+
+actor ServiceDispatch: Dispatch {
     private var _services: [AnyHashable: Service] = [:]
     @MainActor private var _tasks: [AnyHashable: Task<Void, Never>] = [:]
 
@@ -28,8 +46,8 @@ public actor Dispatch {
     }
 
     @MainActor
-    var isEmpty: Bool {
-        _tasks.isEmpty
+    var hasTasks: Bool {
+        !_tasks.isEmpty
     }
 
     /// Sends an action to all the services in the pool.
@@ -72,7 +90,7 @@ public actor Dispatch {
 import SwiftUI
 
 private struct DispatchKey: EnvironmentKey {
-    static var defaultValue: Dispatch = .init()
+    static var defaultValue: Dispatch = ServiceDispatch()
 }
 
 public extension EnvironmentValues {

@@ -109,7 +109,7 @@ extension Reducer
             switch action {
             case .logout
                 state.user = .guest
-                return SideEffect { dispatch, environment in
+                return { dispatch, environment in
                     dispatch(action: NavigationAction.go(to: "/"))
                     await environment.remote.logout()
                 }

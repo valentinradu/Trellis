@@ -44,13 +44,13 @@ public struct ServiceBuilder<E, S, R>
     where E: Actor, R: ReducerCollection, S: ObservableObject
 {
     private let _id: AnyHashable
-    private let _dispatch: Dispatch
+    private let _dispatch: ServiceDispatch
     private let _state: S
     private let _environment: E
     private let _reducers: R
 
     fileprivate init<ID: Hashable>(id: ID,
-                                   dispatch: Dispatch)
+                                   dispatch: ServiceDispatch)
         where S == EmptyState, E == EmptyEnvironment, R == EmptyReducers
     {
         _id = id
@@ -61,7 +61,7 @@ public struct ServiceBuilder<E, S, R>
     }
 
     fileprivate init<ID: Hashable>(id: ID,
-                                   dispatch: Dispatch,
+                                   dispatch: ServiceDispatch,
                                    state: S,
                                    environment: E,
                                    reducers: R)
@@ -96,7 +96,7 @@ public struct ServiceBuilder<E, S, R>
     }
 
     /// Adds a new reducer to the service.
-    public func add<A>(reducer: Reducer<E, S, A>) -> ServiceBuilder<E, S, R>
+    public func add<A>(reducer: @escaping Reducer<E, S, A>) -> ServiceBuilder<E, S, R>
         where A: Action, R == AnyReducers<S>
     {
         let reducer = StatefulReducer(dispatch: _dispatch,
@@ -110,7 +110,7 @@ public struct ServiceBuilder<E, S, R>
     }
 
     /// Adds a new reducer to the service.
-    public func add<A>(reducer: Reducer<E, S, A>) -> ServiceBuilder<E, S, AnyReducers<S>>
+    public func add<A>(reducer: @escaping Reducer<E, S, A>) -> ServiceBuilder<E, S, AnyReducers<S>>
         where A: Action, R == EmptyReducers
     {
         let reducer = StatefulReducer(dispatch: _dispatch,
@@ -138,11 +138,14 @@ public struct ServiceBuilder<E, S, R>
 public struct ServicePool<ID> where ID: Hashable
 {
     /// The dispatch function
-    public let dispatch: Dispatch
+    public var dispatch: Dispatch { _dispatch }
+    @MainActor public var hasTasks: Bool { _dispatch.hasTasks }
+
+    private let _dispatch: ServiceDispatch
 
     public init()
     {
-        dispatch = .init()
+        _dispatch = ServiceDispatch()
     }
 
     /// Starts the process of creating a new service.
@@ -150,17 +153,17 @@ public struct ServicePool<ID> where ID: Hashable
         where ID: Hashable
     {
         ServiceBuilder(id: service,
-                       dispatch: dispatch)
+                       dispatch: _dispatch)
     }
 
     /// Removes a service from the pool.
     public func remove(service: ID) async
     {
-        await dispatch.unregister(service)
+        await _dispatch.unregister(service)
     }
 
     public func waitForAllTasks() async
     {
-        await dispatch.waitForAllTasks()
+        await _dispatch.waitForAllTasks()
     }
 }

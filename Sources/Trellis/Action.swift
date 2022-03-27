@@ -40,3 +40,8 @@ public enum TransfromErrorResult<A> where A: Action {
     /// `action` will be dispatched forward after the failure.
     case to(action: A)
 }
+
+/**
+ Typealias for clarity, `AnyHashable` can be used as `AnyAction` for free.
+ */
+public typealias AnyAction = AnyHashable

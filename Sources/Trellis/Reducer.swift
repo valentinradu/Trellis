@@ -8,17 +8,7 @@
 import Foundation
 
 /// The reducer wraps the state mutating operation: `(&state, action) -> SideEffect`.
-public struct Reducer<E, S, A> where E: Actor, A: Action {
-    public typealias Operation = (inout S, A) -> SideEffect<E>
-    private let _operation: Operation
-    public init(_ operation: @escaping Operation) {
-        _operation = operation
-    }
-
-    public func callAsFunction(state: inout S, action: A) -> SideEffect<E> {
-        _operation(&state, action)
-    }
-}
+public typealias Reducer<E, S, A> = (inout S, A) -> SideEffect<E>? where E: Actor, A: Action
 
 struct ReducerResult {
     public static var none: ReducerResult { .init() }
@@ -28,19 +18,13 @@ struct ReducerResult {
     init<E, A>(dispatch: Dispatch,
                environment: E,
                action: A,
-               sideEffect: SideEffect<E>)
+               sideEffect: @escaping SideEffect<E>)
         where E: Actor, A: Action
     {
-        guard sideEffect.hasOperation else {
-            _operation = {}
-            _hasSideEffects = false
-            return
-        }
-        
         _operation = {
             do {
-                try await sideEffect(dispatch: dispatch,
-                                     environment: environment)
+                try Task.checkCancellation()
+                try await sideEffect(dispatch, environment)
             }
             catch {
                 let actionTransform = action.transform(error: error)
@@ -53,15 +37,15 @@ struct ReducerResult {
                 }
             }
         }
-        
+
         _hasSideEffects = true
     }
-    
+
     init() {
         _operation = {}
         _hasSideEffects = false
     }
-    
+
     var hasSideEffects: Bool {
         _hasSideEffects
     }
@@ -77,12 +61,13 @@ struct StatefulReducer<S> {
 
     init<E, A>(dispatch: Dispatch,
                environment: E,
-               reducer: Reducer<E, S, A>)
+               reducer: @escaping Reducer<E, S, A>)
         where E: Actor, A: Action
     {
         _operation = { state, action in
-            if let action = action as? A {
-                let sideEffect = reducer(state: &state, action: action)
+            if let action = action as? A,
+               let sideEffect = reducer(&state, action)
+            {
                 return ReducerResult(dispatch: dispatch,
                                      environment: environment,
                                      action: action,

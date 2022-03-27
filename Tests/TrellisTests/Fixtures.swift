@@ -39,15 +39,14 @@ enum Services: Hashable {
 
 typealias AccountReducer = Reducer<AccountEnvironment, AccountState, AccountAction>
 
-extension Reducer {
+enum Reducers {
     static func record(delay: Bool = false) -> AccountReducer {
-        AccountReducer { state, action in
+        { state, action in
             state.actions.append(action)
-            return SideEffect { _, env in
+            return { _, env in
                 if delay {
                     try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
                 }
-//                print(action)
                 await env.add(action: action)
             }
         }
@@ -56,8 +55,8 @@ extension Reducer {
     static func error(_ error: AccountError,
                       on searchedAction: AccountAction) -> AccountReducer
     {
-        AccountReducer { _, action in
-            SideEffect { _, _ in
+        { _, action in
+            { _, _ in
                 if action == searchedAction {
                     throw error
                 }
@@ -66,7 +65,7 @@ extension Reducer {
     }
 
     static func inert() -> AccountReducer {
-        AccountReducer { _, _ in
+        { _, _ in
             .none
         }
     }

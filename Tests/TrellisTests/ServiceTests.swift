@@ -27,15 +27,15 @@ final class ServiceTests: XCTestCase {
 
     func testSingleReducer() async {
         await _builder
-            .add(reducer: .record())
+            .add(reducer: Reducers.record())
             .bootstrap()
         await _pool.dispatch(action: AccountAction.login)
         await _pool.waitForAllTasks()
 
         let stateActions = _state.actions
         let environmentActions = await _environment.actions
-        let isEmpty = await _pool.dispatch.isEmpty
-        XCTAssertTrue(isEmpty)
+        let hasTasks = await _pool.hasTasks
+        XCTAssertTrue(!hasTasks)
         XCTAssertEqual(stateActions, [.login])
         XCTAssertEqual(environmentActions, [.login])
     }
@@ -44,8 +44,8 @@ final class ServiceTests: XCTestCase {
         await _pool
             .build(service: .account)
             .set(environment: _environment)
-            .add(reducer: Reducer { _, action in
-                SideEffect { _, environment in
+            .add(reducer: { _, action in
+                { _, environment in
                     await environment.add(action: action)
                 }
             })
@@ -60,7 +60,7 @@ final class ServiceTests: XCTestCase {
 
     func testCancelDuplicates() async {
         await _builder
-            .add(reducer: .record(delay: true))
+            .add(reducer: Reducers.record(delay: true))
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
@@ -73,8 +73,8 @@ final class ServiceTests: XCTestCase {
 
     func testMultipleReducers() async {
         await _builder
-            .add(reducer: .record())
-            .add(reducer: .record())
+            .add(reducer: Reducers.record())
+            .add(reducer: Reducers.record())
             .bootstrap()
         await _pool.dispatch(action: AccountAction.login)
         await _pool.waitForAllTasks()
@@ -85,13 +85,13 @@ final class ServiceTests: XCTestCase {
 
     func testMultipleServices() async {
         await _builder
-            .add(reducer: .record())
+            .add(reducer: Reducers.record())
             .bootstrap()
         await _pool
             .build(service: .account2)
             .set(initialState: _state)
             .set(environment: _environment)
-            .add(reducer: .record())
+            .add(reducer: Reducers.record())
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
@@ -103,7 +103,7 @@ final class ServiceTests: XCTestCase {
 
     func testDestroyService() async {
         await _builder
-            .add(reducer: .record())
+            .add(reducer: Reducers.record())
             .bootstrap()
         await _pool.remove(service: .account)
         await _pool.dispatch(action: AccountAction.login)
@@ -114,8 +114,8 @@ final class ServiceTests: XCTestCase {
 
     func testErrorTransform() async {
         await _builder
-            .add(reducer: .error(.accessDenied, on: .login))
-            .add(reducer: .record())
+            .add(reducer: Reducers.error(.accessDenied, on: .login))
+            .add(reducer: Reducers.record())
             .bootstrap()
 
         await _pool.dispatch(action: AccountAction.login)
@@ -123,5 +123,22 @@ final class ServiceTests: XCTestCase {
 
         let actions = _state.actions
         XCTAssertEqual(actions, [.login, .error])
+    }
+    
+    func testDirectAccess() async throws {
+        let dispatch = RecordDispatch()
+        let reducer = Reducers.record()
+        let environment = AccountEnvironment()
+        var state = AccountState()
+        if let sideEffect = reducer(&state, AccountAction.login) {
+            try await sideEffect(dispatch, environment)
+        }
+        
+        let dispatchActions = await dispatch.actions
+        let reducerActions = state.actions
+        let environmentActions = await environment.actions
+        
+        XCTAssertEqual(dispatchActions, [])
+        XCTAssertEqual(reducerActions, environmentActions)
     }
 }
