@@ -4,8 +4,9 @@
 [![Xcode](https://img.shields.io/badge/Xcode-13-blue.svg?style=for-the-badge&logo=Xcode&logoColor=white)](https://developer.apple.com/xcode)
 [![MIT](https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Trellis is a zero-dependency, architectural framework inspired by Redux and the microservices architecture. It can help you write clean, predictable, and above all, testable applications in Swift. It favors unidirectional data flow, separation of concerns and supports Swift 5.6+ concurrency.
+Trellis is a lightweight architectural framework inspired by Redux and the microservices architecture. It helps write clean, predictable, and above all, testable applications in Swift by favoring unidirectional data flow, separation of concerns and business logic encapsulation.
 Trellis' philosophy is to be as non-intrusive as possible, exposing a single function (`dispatch`) to the presentation layer and having a very limited API surface otherwise.
+Built on Swift 5.6+ concurrency model.
 
 ## Index
 * [Installation]
@@ -47,44 +48,70 @@ Each service owns its state, meaning no other entity can mutate it. However, it'
 
 ### The reducers
 
-Reducers are functions that mutate the state as a response to an action. Their signiature is `(inout State, Action) -> SideEffect`. They take the current state, and mutates it w.r.t. the action while returning any other additional tasks that need to be performed as a side effect. 
-While each service can only have one state, it can register multiple reducers, responding to different kind of actions.
+Reducers are functions that mutate the state in response to actions. Each service can can register multiple reducers, responding to different kind of actions. 
+Their signiature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Environment) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`. It is a bit convoluted, but easier in practice and works great for injecting dependendecies during testing. The regular reducer looks something like this:
+
+
+```swift
+let reducer = { state, action in
+    switch action {
+        // Modify the state w.r.t. the action
+        case .logout:
+            state.loading = true
+        // ...
+    }
+    
+    // If additional, async, operations are required,
+    // return a side effect. 
+    // Note: You cannot directly modify the state in
+    // side effects, but you can access it readonly.
+    
+    return { [state] dispatch, environment in
+        // Do async work 
+        await environment.logout(state.user.id)
+        // Then, if required, dispatch again 
+        // and repeat all steps with another action 
+        dispatch(action: .logoutComplete)
+    }
+}
+``` 
 
 ### The environment
 
 The environment is Trellis' dependency injection mechanism. It's only available inside the side effects and can hold references to external libraries, utils, the network layer, and so on.
 
-Trellis is flexible and there are numerous ways to organize code around it. An approach that works great is to start with each service in a separate file and declare the related actions, state, reducers, and environment in it. 
+### The structure
+
+Trellis is very flexible and there are numerous ways to organize code around it. An approach that works great is to start with each service in a separate file containing the related actions, state, reducers, and environment in it. Also, keeping all services in a separate module helps hiding information from the presentation layer.
 
 ```swift
 // NavigationService.swift
 
-enum NavigationAction: Action {
+public enum NavigationAction: Action {
     case goto(path: String)
     case back
 }
 
-class NavigationState: ObservableObject {
-    @Published fileprivate(set) var path: String = ""
-    @Published fileprivate(set) var history: [String] = []
+public class NavigationState: ObservableObject {
+    @Published public fileprivate(set) var path: String = ""
+    @Published public fileprivate(set) var history: [String] = []
 }
 
-extension Reducer
-    where E == EmptyEnvironment, S == NavigationState, A == NavigationAction
-{
-    static var navigation: Reducer {
-        Reducer { state, action in
+enum NavigationReducers {
+    static var navigate: Reducer<EmptyEnvironment, NavigationState, NavigationAction> {
+        return { state, action in
             switch action {
             case let .goto(path):
                 state.history.append(state.path)
                 state.path = path
-            case let .back:
+            case .back:
                 if state.history.count > 0 {
                     let path = state.history.removeLast()
                     state.path = path
                 }
             }
             
+            // We don't need any side effect in this case
             return .none
         }
     }
@@ -96,30 +123,11 @@ A few things to notice:
 
 - the service has its own set of actions that are handled inside the reducer
 - the state setter is `fileprivate`, only the service can write to it
-- declaring reducers in a `Reducer` extension will make it easier passing it to `.add(reducer:)`
+- only the state and actions are exposed outside of the module
 
-This particular reducer doesn't have an environment, nor does it require additional side effects. A reducer with side effects and an environment would have looked like this (notice how we return the side effect instead of `.none`):
+This particular reducer doesn't have an environment, nor does it require additional side effects.
 
-```swift
-extension Reducer
-    where E == AccountEnvironment, S == AccountState, A == AccountAction
-{
-    static var account: Reducer {
-        Reducer { state, action in
-            switch action {
-            case .logout
-                state.user = .guest
-                return { dispatch, environment in
-                    dispatch(action: NavigationAction.go(to: "/"))
-                    await environment.remote.logout()
-                }
-            }
-        }
-    }
-}
-```
-
-Once we have a service, we need to add it to a service pool. A service pool is a managed collection of services that can communicate with each other. In almost all cases, there's one pool per app.
+Once we have a service, we need to add it to the service pool. A service pool is a managed collection of services that can communicate with each other. In almost all cases, there's one pool per app.
 
 ```swift
 let pool: ServicePool<Service> = .init()
@@ -130,7 +138,7 @@ await pool
     .build(service: .account) // <-- this is the name from `Service` enum
     .set(initialState: state)
     .set(environment: environment)
-    .add(reducer: .account) // <-- this is the reducer from the extension
+    .add(reducer: AccountReducers.authentication)
     .bootstrap()
 ``` 
 
@@ -167,19 +175,40 @@ struct OtherView: View {
 }
 ```
 
+### Single service apps
+
+For small apps, it could make sense to start with a single service and a couple of reducers instead of multiple services.
+
 ## Concurrency
 
 Trellis uses the Swift 5.6 concurrency model and guarantees that:
 
 - all calls that mutate the state will be made on the main thread
 - the `dispatch` function is reentrant and can be used from any thread
-- the environment can be called from any thread (it has to be an actor)
+- the environment can be safely called from any thread (it has to be an actor)
 
 
 ## Testing
 
-Unit testing with Trellis is really easy since reducers are pure functions and injecting dependencies into side effects is straightforward. 
-TODO: Expand on this, add an example.
+Unit testing is easy since reducers are pure functions and injecting dependencies into side effects is straightforward. To help with the former, Trellis provides `RecordDispatch` for recording all the dispatched actions (instead of passing them to services)
+
+```swift
+let dispatch = RecordDispatch()
+let environment = MockedAccountEnvironment()
+var state = AccountState()
+
+if let sideEffect = AccountReducers.authentication(&state, AccountAction.login) {
+    // Assert the resulting state
+    // ...
+    // Then perform the side effects
+    try await sideEffect(dispatch, environment)
+    // Assert the recorded actions and the state of the mocked environment
+}
+else {
+    // Alternatively, assert if reducer should return any side effects 
+}
+
+```
   
 
 ## License

@@ -47,6 +47,7 @@ enum Reducers {
                 if delay {
                     try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
                 }
+
                 await env.add(action: action)
             }
         }
