@@ -28,7 +28,8 @@ Using Swift Package Manager:
 
 ### Services
 
-Conceptually, services encapsulate the business logic and its associated data. In a large scale application, each service handles a specific set of tasks that go together well. Trellis provides the means to easily build services and streamlines the service-to-service communication. Services are usually listed using an `enum`: 
+Conceptually, services encapsulate the business logic and associated data. In a large scale application, each service handles a specific set of tasks that go together well. Trellis provides the means to easily build services and streamlines the service-to-service communication. 
+Services are usually listed using an `enum`: 
 
 ```swift
 enum Service {
@@ -48,8 +49,7 @@ Each service owns its state, meaning no other entity can mutate it. However, it'
 
 ### The reducers
 
-Reducers are functions that mutate the state in response to actions. Each service can can register multiple reducers, responding to different kind of actions. 
-Their signiature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Environment) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`. It is a bit convoluted, but easier in practice and works great for injecting dependendecies during testing. The regular reducer looks something like this:
+Reducers are functions that mutate the state in response to actions. Their signiature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Environment) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`. It is a bit convoluted, but easier in practice and works great for injecting dependendecies during testing. A regular reducer looks something like this:
 
 
 ```swift
@@ -61,20 +61,22 @@ let reducer = { state, action in
         // ...
     }
     
-    // If additional, async, operations are required,
+    // If additional, async operations are required,
     // return a side effect. 
-    // Note: You cannot directly modify the state in
+    // Note: You cannot directly modify the state inside
     // side effects, but you can access it readonly.
     
     return { [state] dispatch, environment in
         // Do async work 
         await environment.logout(state.user.id)
         // Then, if required, dispatch again 
-        // and repeat all steps with another action 
+        // and repeat all the steps with another action 
         dispatch(action: .logoutComplete)
     }
 }
 ``` 
+
+Each service can can register multiple reducers, responding to different kind of actions.
 
 ### The environment
 
@@ -82,7 +84,7 @@ The environment is Trellis' dependency injection mechanism. It's only available 
 
 ### The structure
 
-Trellis is very flexible and there are numerous ways to organize code around it. An approach that works great is to start with each service in a separate file containing the related actions, state, reducers, and environment in it. Also, keeping all services in a separate module helps hiding information from the presentation layer.
+Trellis is very flexible and there are numerous ways to organize code around it. An approach that works great is to start with each service in a separate file containing the related actions, state, reducers, and the environment. Also, keeping all services in a separate module allows hiding information from the presentation layer.
 
 ```swift
 // NavigationService.swift
@@ -121,8 +123,8 @@ enum NavigationReducers {
 
 A few things to notice:
 
-- the service has its own set of actions that are handled inside the reducer
-- the state setter is `fileprivate`, only the service can write to it
+- the service has its own set of actions
+- the state setter is `fileprivate`, only the service can mutate it
 - only the state and actions are exposed outside of the module
 
 This particular reducer doesn't have an environment, nor does it require additional side effects.
@@ -142,7 +144,7 @@ await pool
     .bootstrap()
 ``` 
 
-Once we bootstrap all our services, we can pass the `pool.dispatch` function to any other entities that wish to indirectly mutate the state of our services (like the presentation layer). Trellis already declares a SwiftUI environment key for this:
+After we bootstrap all, we can pass the `pool.dispatch` function to any other entities that wish to indirectly mutate the state of our services (like the presentation layer). Trellis already declares a SwiftUI environment key for this:
 
 ```swift
 var body: some Scene {
@@ -205,11 +207,10 @@ if let sideEffect = AccountReducers.authentication(&state, AccountAction.login) 
     // Assert the recorded actions and the state of the mocked environment
 }
 else {
-    // Alternatively, assert if reducer should return any side effects 
+    // Alternatively, assert if reducer returns any side effects 
 }
 
 ```
-  
 
 ## License
 [MIT License](LICENSE)
