@@ -28,7 +28,7 @@ public struct SideEffect<E> where E: Actor {
         _hasOperation
     }
 
-    func callAsFunction(dispatch: Dispatch, environment: E) async throws {
+    public func callAsFunction(dispatch: Dispatch, environment: E) async throws {
         guard _hasOperation else { return }
         try Task.checkCancellation()
         try await _operation(dispatch, environment)
