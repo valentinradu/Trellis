@@ -8,7 +8,7 @@
 import Foundation
 
 /// The reducer wraps the state mutating operation: `(&state, action) -> SideEffect`.
-public typealias Reducer<E, S, A> = (inout S, A) -> SideEffect<E>? where E: Actor, A: Action
+public typealias Reducer<E, S, A> = (inout S, A) -> SideEffect<E>? where A: Action
 
 struct ReducerResult {
     public static var none: ReducerResult { .init() }
@@ -19,7 +19,7 @@ struct ReducerResult {
                environment: E,
                action: A,
                sideEffect: @escaping SideEffect<E>)
-        where E: Actor, A: Action
+        where A: Action
     {
         _operation = {
             do {
@@ -62,7 +62,7 @@ struct StatefulReducer<S> {
     init<E, A>(dispatch: Dispatch,
                environment: E,
                reducer: @escaping Reducer<E, S, A>)
-        where E: Actor, A: Action
+        where A: Action
     {
         _operation = { state, action in
             if let action = action as? A,

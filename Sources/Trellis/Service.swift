@@ -57,7 +57,7 @@ struct StatefulService<S>: Service where S: ObservableObject {
 }
 
 /// Side effects are async reducer operations that don't mutate the state directly.
-public typealias SideEffect<E> = (Dispatch, E) async throws -> Void where E: Actor
+public typealias SideEffect<E> = (Dispatch, E) async throws -> Void
 
 /// The result encapsulates the side effects of all the services in the pool for a specific action.
 public struct ServiceResult {

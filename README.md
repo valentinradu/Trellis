@@ -187,7 +187,8 @@ Trellis uses the Swift concurrency model and guarantees that:
 
 - all calls that mutate the state will be made on the main thread
 - the `dispatch` function is reentrant and can be used from any thread
-- the environment can be safely called from any thread (it has to be an actor)
+
+Side effects can be called on any thread, which usually means the environment should be an actor. 
 
 
 ## Testing

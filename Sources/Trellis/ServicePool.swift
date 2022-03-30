@@ -41,7 +41,7 @@ public struct AnyReducers<S>: ReducerCollection
 
 /// The service builder for bootstrapping services. This is usually created by the service pool.
 public struct ServiceBuilder<E, S, R>
-    where E: Actor, R: ReducerCollection, S: ObservableObject
+    where R: ReducerCollection, S: ObservableObject
 {
     private let _id: AnyHashable
     private let _dispatch: ServiceDispatch
@@ -86,7 +86,7 @@ public struct ServiceBuilder<E, S, R>
 
     /// Sets the environment for the service.
     public func set<NE>(environment: NE) -> ServiceBuilder<NE, S, R>
-        where E == EmptyEnvironment, NE: Actor
+        where E == EmptyEnvironment
     {
         ServiceBuilder<NE, S, R>(id: _id,
                                  dispatch: _dispatch,
