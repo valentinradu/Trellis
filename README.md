@@ -49,7 +49,7 @@ Each service owns its state, meaning no other entity can mutate it. However, it'
 
 ### The reducers
 
-Reducers are functions that mutate the state in response to actions. Their signiature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Environment) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`. It is a bit convoluted, but easier in practice and works great for injecting dependendecies during testing. A regular reducer looks something like this:
+Reducers are functions that mutate the state in response to actions. Their signature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Environment) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`. It is a bit convoluted, but easier in practice and works great for injecting dependencies during testing. A regular reducer looks something like this:
 
 
 ```swift
