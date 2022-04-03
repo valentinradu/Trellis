@@ -19,20 +19,16 @@ actor AccountEnvironment {
     }
 }
 
-enum AccountAction: Action, Equatable {
+enum AccountAction: Action {
     case login
     case error
-
-    func transform(error: Error) -> TransfromErrorResult<Self> {
-        .to(action: .error)
-    }
 }
 
-class AccountState: ObservableObject {
-    @Published var actions: [AccountAction] = []
+class AccountState {
+    var actions: [AccountAction] = []
 }
 
-enum Services: Hashable {
+enum Services: ServiceName {
     case account
     case account2
 }

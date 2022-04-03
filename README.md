@@ -94,9 +94,9 @@ public enum NavigationAction: Action {
     case back
 }
 
-public class NavigationState: ObservableObject {
-    @Published public fileprivate(set) var path: String = ""
-    @Published public fileprivate(set) var history: [String] = []
+public struct NavigationState {
+    var path: String = ""
+    var history: [String] = []
 }
 
 enum NavigationReducers {
@@ -200,7 +200,7 @@ let dispatch = RecordDispatch()
 let environment = MockedAccountEnvironment()
 var state = AccountState()
 
-if let sideEffect = AccountReducers.authentication(&state, AccountAction.login) {
+if let sideEffect = AccountReducers.authentication(&state, .login) {
     // Assert the resulting state
     // ...
     // Then perform the side effects

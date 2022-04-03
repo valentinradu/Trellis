@@ -14,6 +14,45 @@ public protocol Dispatch {
 }
 
 /**
+ Reducers react to **actions** and mutate the state in a predictable way.
+ ```
+ enum AccountAction: Action {
+     case login(email: String, password: String)
+     case logout
+     case resetPassword
+ }
+ ```
+ */
+public protocol Action: Hashable {}
+
+public struct AnyAction: Action {
+    public let base: Any
+    private let _hash: (inout Hasher) -> Void
+
+    init<A>(_ action: A) where A: Action {
+        base = action
+        _hash = { hasher in
+            action.hash(into: &hasher)
+        }
+    }
+
+    public static func == <A>(lhs: Self, rhs: A) -> Bool
+        where A: Action
+    {
+        if let lhs = lhs as? A ?? lhs.base as? A {
+            return lhs == rhs
+        }
+        else {
+            return false
+        }
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        _hash(&hasher)
+    }
+}
+
+/**
  A dispatch that records actions.
  */
 public class RecordDispatch: Dispatch {
@@ -27,15 +66,15 @@ public class RecordDispatch: Dispatch {
 }
 
 actor ServiceDispatch: Dispatch {
-    private var _services: [AnyHashable: Service] = [:]
+    private var _services: [AnyHashable: Reactive] = [:]
     @MainActor private var _tasks: [AnyHashable: Task<Void, Never>] = [:]
 
-    func register<ID: Hashable>(_ id: ID, service: Service) {
-        _services[id] = service
+    func registerService<N>(_ service: Reactive, name: N) where N: ServiceName {
+        _services[name] = service
     }
 
-    func unregister<ID: Hashable>(_ id: ID) {
-        _services.removeValue(forKey: id)
+    func unregisterService<N>(_ name: N) where N: ServiceName {
+        _services.removeValue(forKey: name)
     }
 
     @MainActor
@@ -53,36 +92,69 @@ actor ServiceDispatch: Dispatch {
     /// Sends an action to all the services in the pool.
     @MainActor
     public func callAsFunction<A>(action: A) where A: Action {
-        let key = AnyHashable(action)
-        if let olderTask = _tasks[key] {
+        if let olderTask = _tasks[action] {
             olderTask.cancel()
         }
 
         let task = Task { [weak self] in
-            var results: [ServiceResult] = []
-            if let services = await self?._services.values {
-                for service in services {
-                    let result = await service.send(action: action)
+            let action = AnyAction(action)
+            var serviceResults: [(AnyHashable, AnyAction, ServiceResult)] = []
+            guard let services = await self?._services else {
+                return
+            }
 
-                    if result.hasSideEffects {
-                        results.append(result)
+            for (_, service) in services {
+                do {
+                    try await service.pre(action: action)
+                }
+                catch {
+                    if let self = self {
+                        await service.error(error, dispatch: self, action: action)
                     }
+                    self?._tasks.removeValue(forKey: action)
+                    return
                 }
             }
 
-            if !results.isEmpty {
-                await withTaskGroup(of: Void.self) { taskGroup in
-                    for result in results {
+            for (name, service) in services {
+                let result = await service.send(action: action)
+
+                if result.hasSideEffects {
+                    serviceResults.append((name, action, result))
+                }
+            }
+
+            for (_, service) in services {
+                await service.post(action: action)
+            }
+
+            if !serviceResults.isEmpty {
+                await withTaskGroup(of: (AnyHashable, AnyAction, [Result<Void, Error>]).self) { taskGroup in
+                    for (name, action, result) in serviceResults {
                         taskGroup.addTask {
-                            await result()
+                            (name, action, await result())
+                        }
+                    }
+
+                    for await (name, action, values) in taskGroup {
+                        for value in values {
+                            guard let self = self else {
+                                continue
+                            }
+
+                            let services = await self._services
+
+                            if case let .failure(error) = value {
+                                await services[name]?.error(error, dispatch: self, action: action)
+                            }
                         }
                     }
                 }
             }
 
-            self?._tasks.removeValue(forKey: key)
+            self?._tasks.removeValue(forKey: action)
         }
-        _tasks[key] = task
+        _tasks[action] = task
     }
 }
 
