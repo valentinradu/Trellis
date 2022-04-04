@@ -12,7 +12,7 @@ enum AccountError: Error, Equatable {
     case accessDenied
 }
 
-actor AccountEnvironment {
+actor AccountContext {
     private(set) var actions: [AccountAction] = []
     func add(action: AccountAction) {
         actions.append(action)
@@ -28,12 +28,7 @@ class AccountState {
     var actions: [AccountAction] = []
 }
 
-enum Services: ServiceName {
-    case account
-    case account2
-}
-
-typealias AccountReducer = Reducer<AccountEnvironment, AccountState, AccountAction>
+typealias AccountReducer = Reducer<AccountState, AccountContext, AccountAction>.Reduce
 
 enum Reducers {
     static func record(delay: Bool = false) -> AccountReducer {

@@ -11,17 +11,28 @@ import XCTest
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class ServiceTests: XCTestCase {
     private var _pool: ServicePool<Services>!
-    private var _builder: ServiceBuilder<Services, AccountState, [EmptyReducer]>!
+    private var _builder: OldServiceBuilder<Services, AccountState, [EmptyReducer]>!
     private var _state: AccountState!
-    private var _environment: AccountEnvironment!
+    private var _environment: AccountContext!
 
     override func setUp() async throws {
         _pool = .init()
         _state = AccountState()
-        _environment = AccountEnvironment()
+        _environment = AccountContext()
         _builder = _pool
             .build(service: .account)
             .add(state: _state)
+
+//        _ = Cluster {
+//            Service {
+//                ActionReducer {}
+//                ActionReducer {}
+//                FailureReducer {}
+//            }
+//        }
+//        .pre { action in
+//            print(action)
+//        }
     }
 
     func testSingleReducer() async {
@@ -121,7 +132,7 @@ final class ServiceTests: XCTestCase {
     func testDirectAccess() async throws {
         let dispatch = RecordDispatch()
         let reducer = Reducers.record()
-        let environment = AccountEnvironment()
+        let environment = AccountContext()
         var state = AccountState()
         if let sideEffect = reducer(&state, .login) {
             try await sideEffect(dispatch, environment)

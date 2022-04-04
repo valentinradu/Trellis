@@ -2,71 +2,54 @@
 //  File.swift
 //
 //
-//  Created by Valentin Radu on 23/03/2022.
+//  Created by Valentin Radu on 04/04/2022.
 //
 
 import Foundation
 
-/// The state mutating operation: `(&state, action) -> SideEffect`.
-public typealias Reducer<E, S, A> = (inout S, A) -> SideEffect<E>? where A: Action
+class Store<State> {
+    private(set) var state: State
 
-public struct StatefulReducer<S> {
-    private let _operation: (inout S, AnyAction) -> ReducerResult
-
-    init<E, A>(dispatch: Dispatch,
-               environment: E,
-               reducer: @escaping Reducer<E, S, A>)
-    {
-        _operation = { state, action in
-            if let action = action as? A ?? action.base as? A {
-                if let sideEffect = reducer(&state, action) {
-                    return ReducerResult(dispatch: dispatch,
-                                         environment: environment,
-                                         sideEffect: sideEffect)
-                }
-                else {
-                    return .none
-                }
-            }
-            else {
-                return .none
-            }
-        }
+    init(initialState: State) {
+        state = initialState
     }
 
-    func callAsFunction(state: inout S, action: AnyAction) -> ReducerResult {
-        _operation(&state, action)
+    @MainActor func update<T>(_ closure: (inout State) -> T) -> T {
+        closure(&state)
     }
 }
 
-struct ReducerResult {
-    public static var none: ReducerResult { .init() }
-    private let _operation: () async throws -> Void
-    private let _hasSideEffects: Bool
+public struct EmptyContext {}
 
-    init<E>(dispatch: Dispatch,
-            environment: E,
-            sideEffect: @escaping SideEffect<E>)
+public struct EmptyState {}
+
+public struct Reducer<S, C, A>: Actionable
+    where A: Action
+{
+    public typealias SideEffect<C> = (Dispatch, C) async throws -> Void
+    public typealias Reduce = (inout S, A) -> SideEffect<C>?
+    private let _store: Store<S>
+    private let _context: C
+    private let _reduce: Reduce
+    @Environment(\.dispatch) private var _dispatch
+
+    public init(reduce: @escaping Reduce)
+        where S == EmptyState, C == EmptyContext
     {
-        _operation = {
-            try Task.checkCancellation()
-            try await sideEffect(dispatch, environment)
+        let state = EmptyState()
+        let context = EmptyContext()
+        _store = Store(initialState: state)
+        _reduce = reduce
+        _context = context
+    }
+
+    public func receive(action: A) async throws {
+        let sideEffect = await _store.update {
+            _reduce(&$0, action)
         }
 
-        _hasSideEffects = true
-    }
-
-    init() {
-        _operation = {}
-        _hasSideEffects = false
-    }
-
-    var hasSideEffects: Bool {
-        _hasSideEffects
-    }
-
-    func callAsFunction() async throws {
-        guard _hasSideEffects else { return }
-        try await _operation()
+        if let sideEffect = sideEffect {
+            try await sideEffect(_dispatch, _context)
+        }
     }
 }
