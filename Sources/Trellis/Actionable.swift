@@ -8,29 +8,26 @@
 import Foundation
 
 public protocol Actionable {
-    associatedtype A: Action
-    func receive(action: A) async throws
+    func receive(action: any Action) async throws
 }
 
 extension Never: Action {}
 
 public struct EmptyActionable: Actionable {
-    public func receive(action _: Never) async throws {}
+    public func receive(action: Action) async throws {}
 }
 
 public struct AnyActionable: Actionable {
-    private let _receive: (AnyAction) async throws -> Void
+    private let _receive: (Action) async throws -> Void
 
     public init<O>(_ actionable: O) where O: Actionable {
         _receive = { action in
-            if let action = action as? O.A ?? action.base as? O.A {
-                try await actionable.receive(action: action)
-            }
+            try await actionable.receive(action: action)
         }
     }
-
-    public func receive(action: AnyAction) async throws {
-        try await _receive(action)
+    
+    public func receive<A>(action: A) async throws where A : Action {
+        try await _receive(AnyAction(action))
     }
 }
 

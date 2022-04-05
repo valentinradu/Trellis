@@ -7,7 +7,7 @@
 
 import Foundation
 
-public typealias Dispatch = (AnyAction) -> Void
+public typealias Dispatch = (AnyAction) async throws -> Void
 
 private struct DispatchKey: EnvironmentKey {
     public static var defaultValue: Dispatch = { _ in }
@@ -24,38 +24,38 @@ public class Cluster<I>: Actionable
     where I: Actionable
 {
     @Environment(\.failureStrategy) private var _failureStrategy
-    private var _tasks: [AnyHashable: Task<Void, Never>]
-    private var _items: AnyActionable!
-    public init(@ActionableBuilder _ itemsBuilder: @escaping () -> I) {
+    private var _tasks: [AnyHashable: Task<Void, Error>]
+    private var _items: I
+    public init(@ActionableBuilder _ itemsBuilder: () -> I) {
         _tasks = [:]
-        _items = AnyActionable(
-            itemsBuilder()
-                .environment(\.dispatch, value: send)
-        )
+        _items = itemsBuilder()
     }
 
-    public func receive(action: AnyAction) async throws {
-        try await _items.receive(action: action)
-    }
-
-    public func send(action: AnyAction) {
+    public func receive<A>(action: A) async throws where A: Action {
         if let olderTask = _tasks[action] {
             olderTask.cancel()
         }
 
-        let task = Task { [weak self] in
+        let task = Task {
             do {
-                try await self?.receive(action: action)
+                try Task.checkCancellation()
+                try await _items.receive(action: action)
             } catch {
                 switch _failureStrategy {
                 case .fail:
-                    assertionFailure("\(action) failed without a catch handler")
+                    throw error
                 case let .catch(handler):
-                    self?.send(action: handler(error))
+                    let action = handler(error)
+                    try await _items.receive(action: action)
                 }
             }
-            self?._tasks.removeValue(forKey: action)
         }
+
         _tasks[action] = task
+        defer {
+            _tasks.removeValue(forKey: action)
+        }
+
+        try await task.value
     }
 }

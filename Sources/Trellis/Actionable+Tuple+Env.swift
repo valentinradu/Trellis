@@ -40,7 +40,7 @@ public extension EnvironmentValues {
 }
 
 public extension Actionable {
-    func `catch`(_ closure: FailureStrategyHandler?) -> some Actionable {
+    func transformError(_ closure: FailureStrategyHandler?) -> some Actionable {
         environment(\.failureStrategy,
                     value: closure != nil ? .catch(closure!) : .fail)
     }

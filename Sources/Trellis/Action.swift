@@ -17,40 +17,46 @@ import Foundation
  }
  ```
  */
-public protocol Action: Hashable {}
-
-/**
- Action type erasure
- */
-public struct AnyAction: Action {
-    public let base: Any
-    private let _hash: (inout Hasher) -> Void
-
-    public init<A>(_ action: A) where A: Action {
-        base = action
-        _hash = { hasher in
-            action.hash(into: &hasher)
-        }
-    }
-
-    public init(_ action: AnyAction) {
-        base = action.base
-        _hash = { hasher in
-            action.hash(into: &hasher)
-        }
-    }
-
-    public static func == <A>(lhs: Self, rhs: A) -> Bool
-        where A: Action
-    {
-        if let lhs = lhs as? A ?? lhs.base as? A {
-            return lhs == rhs
-        } else {
-            return false
-        }
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        _hash(&hasher)
-    }
-}
+public protocol Action {}
+//
+///**
+// Action type erasure
+// */
+//public struct AnyAction: Action {
+//    public let base: AnyHashable
+//    private let _hash: (inout Hasher) -> Void
+//
+//    public init<A>(_ action: A) where A: Action {
+//        base = action
+//        _hash = { hasher in
+//            action.hash(into: &hasher)
+//        }
+//    }
+//
+//    public init(_ action: AnyAction) {
+//        base = action.base
+//        _hash = { hasher in
+//            action.hash(into: &hasher)
+//        }
+//    }
+//
+//    public static func == <A>(lhs: Self, rhs: A) -> Bool
+//        where A: Action
+//    {
+//        if let rhs = rhs as? Self {
+//            return lhs.base == rhs.base
+//        } else if let lhs = lhs.base as? A {
+//            return lhs == rhs
+//        } else {
+//            return false
+//        }
+//    }
+//
+//    public func hash(into hasher: inout Hasher) {
+//        _hash(&hasher)
+//    }
+//
+//    public func `as`<A>(_: A.Type) -> A? where A: Action {
+//        self as? A ?? base as? A
+//    }
+//}

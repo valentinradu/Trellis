@@ -47,7 +47,7 @@ private struct EnvironmentActionable<W, V>: Actionable where W: Actionable {
         _wrappedActionable = builder()
     }
 
-    func receive(action: W.A) async throws {
+    func receive<A>(action: A) async throws where A: Action {
 //        let oldValue = EnvironmentValues.main[keyPath: _keyPath]
 //        EnvironmentValues.main[keyPath: _keyPath] = _value
         try await _wrappedActionable.receive(action: action)

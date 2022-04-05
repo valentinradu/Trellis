@@ -43,7 +43,31 @@ public struct Reducer<S, C, A>: Actionable
         _context = context
     }
 
-    public func receive(action: A) async throws {
+    public init(initialState state: S, reduce: @escaping Reduce)
+        where C == EmptyContext
+    {
+        let context = EmptyContext()
+        _store = Store(initialState: state)
+        _reduce = reduce
+        _context = context
+    }
+
+    public init(context: C, reduce: @escaping Reduce)
+        where S == EmptyState
+    {
+        let state = EmptyState()
+        _store = Store(initialState: state)
+        _reduce = reduce
+        _context = context
+    }
+
+    public init(state: S, context: C, reduce: @escaping Reduce) {
+        _store = Store(initialState: state)
+        _reduce = reduce
+        _context = context
+    }
+
+    public func receive<OA>(action: OA) async throws where OA: Action {
         let sideEffect = await _store.update {
             _reduce(&$0, action)
         }

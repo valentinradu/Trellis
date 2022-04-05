@@ -18,21 +18,10 @@ public struct TupleActionable: Actionable {
         where A0: Actionable, A1: Actionable
     {
         _receive = { action in
-            var tasks: [Task<Void, Error>] = []
-
-            if let action = action as? A0.A {
-                tasks.append(Task {
-                    try await tuple.0.receive(action: action)
-                })
-            }
-
-            if let action = action as? A1.A {
-                tasks.append(Task {
-                    try await tuple.1.receive(action: action)
-                })
-            }
-
-            return tasks
+            [
+                Task { try await tuple.0.receive(action: action) },
+                Task { try await tuple.1.receive(action: action) },
+            ]
         }
     }
 
@@ -40,27 +29,11 @@ public struct TupleActionable: Actionable {
         where A0: Actionable, A1: Actionable, A2: Actionable
     {
         _receive = { action in
-            var tasks: [Task<Void, Error>] = []
-
-            if let action = action as? A0.A {
-                tasks.append(Task {
-                    try await tuple.0.receive(action: action)
-                })
-            }
-
-            if let action = action as? A1.A {
-                tasks.append(Task {
-                    try await tuple.1.receive(action: action)
-                })
-            }
-
-            if let action = action as? A2.A {
-                tasks.append(Task {
-                    try await tuple.2.receive(action: action)
-                })
-            }
-
-            return tasks
+            [
+                Task { try await tuple.0.receive(action: action) },
+                Task { try await tuple.1.receive(action: action) },
+                Task { try await tuple.2.receive(action: action) },
+            ]
         }
     }
 
@@ -68,33 +41,12 @@ public struct TupleActionable: Actionable {
         where A0: Actionable, A1: Actionable, A2: Actionable, A3: Actionable
     {
         _receive = { action in
-            var tasks: [Task<Void, Error>] = []
-
-            if let action = action as? A0.A {
-                tasks.append(Task {
-                    try await tuple.0.receive(action: action)
-                })
-            }
-
-            if let action = action as? A1.A {
-                tasks.append(Task {
-                    try await tuple.1.receive(action: action)
-                })
-            }
-
-            if let action = action as? A2.A {
-                tasks.append(Task {
-                    try await tuple.2.receive(action: action)
-                })
-            }
-
-            if let action = action as? A3.A {
-                tasks.append(Task {
-                    try await tuple.3.receive(action: action)
-                })
-            }
-
-            return tasks
+            [
+                Task { try await tuple.0.receive(action: action) },
+                Task { try await tuple.1.receive(action: action) },
+                Task { try await tuple.2.receive(action: action) },
+                Task { try await tuple.3.receive(action: action) },
+            ]
         }
     }
 
@@ -102,39 +54,13 @@ public struct TupleActionable: Actionable {
         where A0: Actionable, A1: Actionable, A2: Actionable, A3: Actionable, A4: Actionable
     {
         _receive = { action in
-            var tasks: [Task<Void, Error>] = []
-
-            if let action = action as? A0.A {
-                tasks.append(Task {
-                    try await tuple.0.receive(action: action)
-                })
-            }
-
-            if let action = action as? A1.A {
-                tasks.append(Task {
-                    try await tuple.1.receive(action: action)
-                })
-            }
-
-            if let action = action as? A2.A {
-                tasks.append(Task {
-                    try await tuple.2.receive(action: action)
-                })
-            }
-
-            if let action = action as? A3.A {
-                tasks.append(Task {
-                    try await tuple.3.receive(action: action)
-                })
-            }
-
-            if let action = action as? A4.A {
-                tasks.append(Task {
-                    try await tuple.4.receive(action: action)
-                })
-            }
-
-            return tasks
+            [
+                Task { try await tuple.0.receive(action: action) },
+                Task { try await tuple.1.receive(action: action) },
+                Task { try await tuple.2.receive(action: action) },
+                Task { try await tuple.3.receive(action: action) },
+                Task { try await tuple.4.receive(action: action) },
+            ]
         }
     }
 
@@ -143,45 +69,14 @@ public struct TupleActionable: Actionable {
         A4: Actionable, A5: Actionable
     {
         _receive = { action in
-            var tasks: [Task<Void, Error>] = []
-
-            if let action = action as? A0.A {
-                tasks.append(Task {
-                    try await tuple.0.receive(action: action)
-                })
-            }
-
-            if let action = action as? A1.A {
-                tasks.append(Task {
-                    try await tuple.1.receive(action: action)
-                })
-            }
-
-            if let action = action as? A2.A {
-                tasks.append(Task {
-                    try await tuple.2.receive(action: action)
-                })
-            }
-
-            if let action = action as? A3.A {
-                tasks.append(Task {
-                    try await tuple.3.receive(action: action)
-                })
-            }
-
-            if let action = action as? A4.A {
-                tasks.append(Task {
-                    try await tuple.4.receive(action: action)
-                })
-            }
-
-            if let action = action as? A5.A {
-                tasks.append(Task {
-                    try await tuple.5.receive(action: action)
-                })
-            }
-
-            return tasks
+            [
+                Task { try await tuple.0.receive(action: action) },
+                Task { try await tuple.1.receive(action: action) },
+                Task { try await tuple.2.receive(action: action) },
+                Task { try await tuple.3.receive(action: action) },
+                Task { try await tuple.4.receive(action: action) },
+                Task { try await tuple.5.receive(action: action) },
+            ]
         }
     }
 
@@ -190,51 +85,15 @@ public struct TupleActionable: Actionable {
         A4: Actionable, A5: Actionable, A6: Actionable
     {
         _receive = { action in
-            var tasks: [Task<Void, Error>] = []
-
-            if let action = action as? A0.A {
-                tasks.append(Task {
-                    try await tuple.0.receive(action: action)
-                })
-            }
-
-            if let action = action as? A1.A {
-                tasks.append(Task {
-                    try await tuple.1.receive(action: action)
-                })
-            }
-
-            if let action = action as? A2.A {
-                tasks.append(Task {
-                    try await tuple.2.receive(action: action)
-                })
-            }
-
-            if let action = action as? A3.A {
-                tasks.append(Task {
-                    try await tuple.3.receive(action: action)
-                })
-            }
-
-            if let action = action as? A4.A {
-                tasks.append(Task {
-                    try await tuple.4.receive(action: action)
-                })
-            }
-
-            if let action = action as? A5.A {
-                tasks.append(Task {
-                    try await tuple.5.receive(action: action)
-                })
-            }
-
-            if let action = action as? A6.A {
-                tasks.append(Task {
-                    try await tuple.6.receive(action: action)
-                })
-            }
-
-            return tasks
+            [
+                Task { try await tuple.0.receive(action: action) },
+                Task { try await tuple.1.receive(action: action) },
+                Task { try await tuple.2.receive(action: action) },
+                Task { try await tuple.3.receive(action: action) },
+                Task { try await tuple.4.receive(action: action) },
+                Task { try await tuple.5.receive(action: action) },
+                Task { try await tuple.6.receive(action: action) },
+            ]
         }
     }
 
@@ -243,62 +102,21 @@ public struct TupleActionable: Actionable {
         A4: Actionable, A5: Actionable, A6: Actionable, A7: Actionable
     {
         _receive = { action in
-            var tasks: [Task<Void, Error>] = []
-
-            if let action = action as? A0.A {
-                tasks.append(Task {
-                    try await tuple.0.receive(action: action)
-                })
-            }
-
-            if let action = action as? A1.A {
-                tasks.append(Task {
-                    try await tuple.1.receive(action: action)
-                })
-            }
-
-            if let action = action as? A2.A {
-                tasks.append(Task {
-                    try await tuple.2.receive(action: action)
-                })
-            }
-
-            if let action = action as? A3.A {
-                tasks.append(Task {
-                    try await tuple.3.receive(action: action)
-                })
-            }
-
-            if let action = action as? A4.A {
-                tasks.append(Task {
-                    try await tuple.4.receive(action: action)
-                })
-            }
-
-            if let action = action as? A5.A {
-                tasks.append(Task {
-                    try await tuple.5.receive(action: action)
-                })
-            }
-
-            if let action = action as? A6.A {
-                tasks.append(Task {
-                    try await tuple.6.receive(action: action)
-                })
-            }
-
-            if let action = action as? A7.A {
-                tasks.append(Task {
-                    try await tuple.7.receive(action: action)
-                })
-            }
-
-            return tasks
+            [
+                Task { try await tuple.0.receive(action: action) },
+                Task { try await tuple.1.receive(action: action) },
+                Task { try await tuple.2.receive(action: action) },
+                Task { try await tuple.3.receive(action: action) },
+                Task { try await tuple.4.receive(action: action) },
+                Task { try await tuple.5.receive(action: action) },
+                Task { try await tuple.6.receive(action: action) },
+                Task { try await tuple.7.receive(action: action) },
+            ]
         }
     }
 
-    public func receive(action: AnyAction) async throws {
-        let tasks = try await _receive(action)
+    public func receive<A>(action: A) async throws where A: Action {
+        let tasks = try await _receive(AnyAction(action))
 
         switch _concurrencyStrategy {
         case .concurrent:
@@ -341,7 +159,7 @@ public struct TupleActionable: Actionable {
                     do {
                         try await task.value
                     } catch {
-                        _dispatch(handler(error))
+                        try await _dispatch(handler(error))
                     }
                 }
             }
