@@ -23,9 +23,7 @@ public struct EmptyContext {}
 
 public struct EmptyState {}
 
-public struct Reducer<S, C, A>: Actionable
-    where A: Action
-{
+public struct Reducer<S, C, A>: Service where A: Action {
     public typealias SideEffect<C> = (Dispatch, C) async throws -> Void
     public typealias Reduce = (inout S, A) -> SideEffect<C>?
     private let _store: Store<S>
@@ -67,7 +65,15 @@ public struct Reducer<S, C, A>: Actionable
         _context = context
     }
 
-    public func receive<OA>(action: OA) async throws where OA: Action {
+    public var body: some Service {
+        EmptyService()
+    }
+
+    public func receive(action: any Action) async throws {
+        guard let action = action as? A else {
+            return
+        }
+
         let sideEffect = await _store.update {
             _reduce(&$0, action)
         }

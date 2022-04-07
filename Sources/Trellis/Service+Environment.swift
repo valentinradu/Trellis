@@ -16,7 +16,7 @@ public struct ConcurrencyStrategyKey: EnvironmentKey {
     public static var defaultValue: ConcurrencyStrategy = .concurrent
 }
 
-public typealias FailureStrategyHandler = (Error) -> AnyAction
+public typealias FailureStrategyHandler = (Error) -> any Action
 
 public enum FailureStrategy {
     case fail
@@ -39,17 +39,17 @@ public extension EnvironmentValues {
     }
 }
 
-public extension Actionable {
-    func transformError(_ closure: FailureStrategyHandler?) -> some Actionable {
+public extension Service {
+    func transformError(_ closure: FailureStrategyHandler?) -> some Service {
         environment(\.failureStrategy,
                     value: closure != nil ? .catch(closure!) : .fail)
     }
 
-    func concurrent() -> some Actionable {
+    func concurrent() -> some Service {
         environment(\.concurrencyStrategy, value: .concurrent)
     }
 
-    func serial() -> some Actionable {
+    func serial() -> some Service {
         environment(\.concurrencyStrategy, value: .serial)
     }
 }

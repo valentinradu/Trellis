@@ -18,7 +18,7 @@ final class ServiceTests: XCTestCase {
         _environment = AccountContext()
     }
 
-    func testSingleActionable() async throws {
+    func testSingleService() async throws {
         let cluster = Cluster {
             Reducer(state: _state,
                     context: _environment,
@@ -49,26 +49,7 @@ final class ServiceTests: XCTestCase {
         XCTAssertEqual(environmentActions, [.login])
     }
 
-    func testCancelDuplicateActionables() async throws {
-        let cluster = Cluster {
-            Reducer(state: _state,
-                    context: _environment,
-                    reduce: Reducers.record())
-        }
-
-        async let task1: Void = try cluster.receive(action: AccountAction.login)
-        async let task2: Void = try cluster.receive(action: AccountAction.login)
-
-        do {
-            _ = try await [task1, task2]
-        } catch is CancellationError {
-            return
-        }
-
-        XCTFail("Failed to throw cancellation error")
-    }
-
-    func testMultipleActionable() async throws {
+    func testMultipleService() async throws {
         let cluster = Cluster {
             Reducer(state: _state,
                     context: _environment,
@@ -96,22 +77,18 @@ final class ServiceTests: XCTestCase {
                     reduce: Reducers.record())
         }
         .transformError { _ in
-            .error
+            AccountAction.error
         }
 
-        try await cluster.receive(action: AnyAction.login)
+        try await cluster.receive(action: AccountAction.login)
 
         let actions = _state.actions
         XCTAssertEqual(actions, [.login, .error])
     }
 
     func testDirectAccess() async throws {
-        let store = Store<[AnyAction]>(initialState: [])
-        let dispatch = { (action: AnyAction) async throws in
-            await store.update { actions in
-                actions.append(action)
-            }
-        }
+        let store = Store<[AccountAction]>(initialState: [])
+        let dispatch = { (action: any Action) async throws in }
         let reducer = Reducers.record()
         let environment = AccountContext()
         var state = AccountState()

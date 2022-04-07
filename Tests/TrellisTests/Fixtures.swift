@@ -19,14 +19,9 @@ actor AccountContext {
     }
 }
 
-enum AccountAction: Action {
+enum AccountAction: Action, Hashable {
     case login
     case error
-}
-
-extension AnyAction {
-    static let login = AnyAction(AccountAction.login)
-    static let error = AnyAction(AccountAction.error)
 }
 
 class AccountState {

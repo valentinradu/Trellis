@@ -13,8 +13,7 @@ public protocol EnvironmentKey {
 }
 
 public struct EnvironmentValues {
-    fileprivate static var main: EnvironmentValues = .init(_values: [:])
-    private var _values: [ObjectIdentifier: Any]
+    private var _values: [ObjectIdentifier: Any] = [:]
     public subscript<K>(_ key: K.Type) -> K.V where K: EnvironmentKey {
         get {
             _values[ObjectIdentifier(key)] as? K.V ?? key.defaultValue
@@ -25,41 +24,48 @@ public struct EnvironmentValues {
     }
 }
 
-@propertyWrapper
-public struct Environment<V> {
-    public let wrappedValue: V
-    public init(_ keyPath: KeyPath<EnvironmentValues, V>) {
-        wrappedValue = EnvironmentValues.main[keyPath: keyPath]
-    }
+protocol EnvironmentValuesContainer {
+    var environmentValues: EnvironmentValues! { get set }
 }
 
-private struct EnvironmentActionable<W, V>: Actionable where W: Actionable {
+@propertyWrapper
+public struct Environment<V>: EnvironmentValuesContainer {
+    var environmentValues: EnvironmentValues!
+    private let _keyPath: KeyPath<EnvironmentValues, V>
+
+    public init(_ keyPath: KeyPath<EnvironmentValues, V>) {
+        _keyPath = keyPath
+    }
+
+    public var wrappedValue: V { environmentValues[keyPath: _keyPath] }
+}
+
+private struct EnvironmentService<V, W>: Service
+    where W: Service
+{
     private let _keyPath: KeyPath<EnvironmentValues, V>
     private let _value: V
-    private let _wrappedActionable: W
+    private let _wrappedService: W
 
     init(_ keyPath: KeyPath<EnvironmentValues, V>,
          value: V,
-         @ActionableBuilder builder: () -> W)
+         @ServiceBuilder builder: () -> W)
     {
         _keyPath = keyPath
         _value = value
-        _wrappedActionable = builder()
+        _wrappedService = builder()
     }
 
-    func receive<A>(action: A) async throws where A: Action {
-//        let oldValue = EnvironmentValues.main[keyPath: _keyPath]
-//        EnvironmentValues.main[keyPath: _keyPath] = _value
-        try await _wrappedActionable.receive(action: action)
-//        EnvironmentValues.main[keyPath: _keyPath] = oldValue
+    var body: some Service {
+        _wrappedService
     }
 }
 
-public extension Actionable {
+public extension Service {
     func environment<V>(_ keyPath: KeyPath<EnvironmentValues, V>,
-                        value: V) -> some Actionable
+                        value: V) -> some Service
     {
-        EnvironmentActionable(keyPath, value: value) {
+        EnvironmentService(keyPath, value: value) {
             self
         }
     }

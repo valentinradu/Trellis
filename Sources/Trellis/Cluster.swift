@@ -7,7 +7,7 @@
 
 import Foundation
 
-public typealias Dispatch = (AnyAction) async throws -> Void
+public typealias Dispatch = (any Action) async throws -> Void
 
 private struct DispatchKey: EnvironmentKey {
     public static var defaultValue: Dispatch = { _ in }
@@ -20,42 +20,15 @@ public extension EnvironmentValues {
     }
 }
 
-public class Cluster<I>: Actionable
-    where I: Actionable
+public class Cluster<I>: Service
+    where I: Service
 {
-    @Environment(\.failureStrategy) private var _failureStrategy
-    private var _tasks: [AnyHashable: Task<Void, Error>]
     private var _items: I
-    public init(@ActionableBuilder _ itemsBuilder: () -> I) {
-        _tasks = [:]
+    public init(@ServiceBuilder _ itemsBuilder: () -> I) {
         _items = itemsBuilder()
     }
 
-    public func receive<A>(action: A) async throws where A: Action {
-        if let olderTask = _tasks[action] {
-            olderTask.cancel()
-        }
-
-        let task = Task {
-            do {
-                try Task.checkCancellation()
-                try await _items.receive(action: action)
-            } catch {
-                switch _failureStrategy {
-                case .fail:
-                    throw error
-                case let .catch(handler):
-                    let action = handler(error)
-                    try await _items.receive(action: action)
-                }
-            }
-        }
-
-        _tasks[action] = task
-        defer {
-            _tasks.removeValue(forKey: action)
-        }
-
-        try await task.value
+    public var body: some Service {
+        _items
     }
 }
