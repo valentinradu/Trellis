@@ -24,12 +24,16 @@ public struct EnvironmentValues {
     }
 }
 
-protocol EnvironmentValuesContainer {
+protocol EnvironmentConsumer {
+    var environmentValues: EnvironmentValues! { get set }
+}
+
+protocol EnvironmentProducer {
     var environmentValues: EnvironmentValues! { get set }
 }
 
 @propertyWrapper
-public struct Environment<V>: EnvironmentValuesContainer {
+public struct Environment<V>: EnvironmentConsumer {
     var environmentValues: EnvironmentValues!
     private let _keyPath: KeyPath<EnvironmentValues, V>
 
@@ -67,6 +71,17 @@ public extension Service {
     {
         EnvironmentService(keyPath, value: value) {
             self
+        }
+    }
+}
+
+extension EnvironmentService: NodeBuilder {
+    func transform(environment: inout EnvironmentValues) {
+        if let keyPath = _keyPath as? WritableKeyPath<EnvironmentValues, V> {
+            environment[keyPath: keyPath] = _value
+        }
+        else {
+            assertionFailure()
         }
     }
 }

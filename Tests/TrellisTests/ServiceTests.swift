@@ -19,13 +19,13 @@ final class ServiceTests: XCTestCase {
     }
 
     func testSingleService() async throws {
-        let cluster = Cluster {
+        let cluster = try Bootstrap {
             Reducer(state: _state,
                     context: _environment,
                     reduce: Reducers.record())
         }
 
-        try await cluster.receive(action: AccountAction.login)
+        try await cluster.send(action: AccountAction.login)
 
         let stateActions = _state.actions
         let environmentActions = await _environment.actions
@@ -33,8 +33,33 @@ final class ServiceTests: XCTestCase {
         XCTAssertEqual(environmentActions, [.login])
     }
 
+    func testSerialServices() async throws {
+        let cluster = try Bootstrap {
+            Group {
+                Reducer(state: _state,
+                        context: _environment,
+                        reduce: Reducers.record(service: .service1))
+                Reducer(state: _state,
+                        context: _environment,
+                        reduce: Reducers.record(service: .service2))
+            }
+            .serial()
+        }
+
+        try await cluster.send(action: AccountAction.login)
+
+        let stateActions = _state.actions
+        let stateServices = _state.services
+        let environmentActions = await _environment.actions
+        let environmentServices = await _environment.services
+        XCTAssertEqual(stateActions, [.login, .login])
+        XCTAssertEqual(stateServices, [.service1, .service2])
+        XCTAssertEqual(environmentActions, [.login, .login])
+        XCTAssertEqual(environmentServices, [.service1, .service2])
+    }
+
     func testStatelessReducer() async throws {
-        let cluster = Cluster {
+        let cluster = try Bootstrap {
             Reducer(context: _environment,
                     reduce: { _, action in
                         { _, environment in
@@ -43,14 +68,57 @@ final class ServiceTests: XCTestCase {
                     })
         }
 
-        try await cluster.receive(action: AccountAction.login)
+        try await cluster.send(action: AccountAction.login)
 
         let environmentActions = await _environment.actions
         XCTAssertEqual(environmentActions, [.login])
     }
+    
+    func testReducerMiddleware() async throws {
+        let store = Store<[AccountAction]>(initialState: [])
+        
+        let cluster = try Bootstrap {
+            Reducer(state: _state,
+                    context: _environment,
+                    reduce: Reducers.record())
+            .pre { state, action in
+                await store.update {
+                    $0.append(action)
+                }
+            }
+            .post { state, action in
+                await store.update {
+                    $0.append(action)
+                }
+            }
+        }
 
-    func testMultipleService() async throws {
-        let cluster = Cluster {
+        try await cluster.send(action: AccountAction.login)
+        XCTAssertEqual(store.state, [.login, .login])
+    }
+    
+    func testReducerMiddlewarePreThrow() async throws {
+        let cluster = try Bootstrap {
+            Reducer(state: _state,
+                    context: _environment,
+                    reduce: Reducers.record())
+            .pre { _, _ in
+                throw AccountError.accessDenied
+            }
+        }
+
+        do {
+            try await cluster.send(action: AccountAction.login)
+        }
+        catch AccountError.accessDenied {
+            return
+        }
+        
+        XCTFail()
+    }
+
+    func testMultipleServices() async throws {
+        let cluster = try Bootstrap {
             Reducer(state: _state,
                     context: _environment,
                     reduce: Reducers.record())
@@ -59,7 +127,7 @@ final class ServiceTests: XCTestCase {
                     reduce: Reducers.record())
         }
 
-        try await cluster.receive(action: AccountAction.login)
+        try await cluster.send(action: AccountAction.login)
 
         let stateActions = _state.actions
         let environmentActions = await _environment.actions
@@ -68,22 +136,35 @@ final class ServiceTests: XCTestCase {
     }
 
     func testErrorTransform() async throws {
-        let cluster = Cluster {
-            Reducer(state: _state,
-                    context: _environment,
-                    reduce: Reducers.error(.accessDenied, on: .login))
-            Reducer(state: _state,
-                    context: _environment,
-                    reduce: Reducers.record())
-        }
-        .transformError { _ in
-            AccountAction.error
+        let cluster = try Bootstrap {
+            Group {
+                Reducer(state: _state,
+                        context: _environment,
+                        reduce: Reducers.error(.accessDenied, on: .login))
+                Reducer(state: _state,
+                        context: _environment,
+                        reduce: Reducers.record())
+            }
+            .transformError { _ in
+                AccountAction.error
+            }
         }
 
-        try await cluster.receive(action: AccountAction.login)
+        try await cluster.send(action: AccountAction.login)
 
         let actions = _state.actions
         XCTAssertEqual(actions, [.login, .error])
+    }
+    
+    func testCustomService() async throws {
+        let cluster = try Bootstrap {
+            AccountService()
+        }
+        
+        try await cluster.send(action: AccountAction.login)
+        
+        let actions = _state.actions
+        XCTAssertEqual(actions, [.login])
     }
 
     func testDirectAccess() async throws {

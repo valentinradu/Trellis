@@ -14,8 +14,13 @@ enum AccountError: Error, Equatable {
 
 actor AccountContext {
     private(set) var actions: [AccountAction] = []
+    private(set) var services: [ServiceName] = []
     func add(action: AccountAction) {
         actions.append(action)
+    }
+
+    func add(service: ServiceName) {
+        services.append(service)
     }
 }
 
@@ -24,22 +29,61 @@ enum AccountAction: Action, Hashable {
     case error
 }
 
+enum ServiceName {
+    case service1
+    case service2
+}
+
 class AccountState {
+    var services: [ServiceName] = []
     var actions: [AccountAction] = []
+}
+
+private struct AccountStateKey: EnvironmentKey {
+    static var defaultValue: AccountState = .init()
+}
+
+private struct AccountContextKey: EnvironmentKey {
+    static var defaultValue: AccountContext = .init()
+}
+
+extension EnvironmentValues {
+    var accountState: AccountState {
+        get { self[AccountStateKey.self] }
+        set { self[AccountStateKey.self] = newValue }
+    }
+
+    var accountContext: AccountContext {
+        get { self[AccountContextKey.self] }
+        set { self[AccountContextKey.self] = newValue }
+    }
+}
+
+struct AccountService: Service {
+    @Environment(\.accountState) private var _state
+    @Environment(\.accountContext) private var _context
+
+    var body: some Service {
+        Reducer(state: _state,
+                context: _context,
+                reduce: Reducers.record())
+    }
 }
 
 typealias AccountReducer = Reducer<AccountState, AccountContext, AccountAction>.Reduce
 
 enum Reducers {
-    static func record(delay: Bool = false) -> AccountReducer {
+    static func record(delay: Bool = false, service: ServiceName = .service1) -> AccountReducer {
         { state, action in
             state.actions.append(action)
+            state.services.append(service)
             return { _, env in
                 if delay {
                     try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
                 }
 
                 await env.add(action: action)
+                await env.add(service: service)
             }
         }
     }

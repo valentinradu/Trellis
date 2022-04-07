@@ -4,8 +4,8 @@
 [![Xcode](https://img.shields.io/badge/Xcode-13-blue.svg?style=for-the-badge&logo=Xcode&logoColor=white)](https://developer.apple.com/xcode)
 [![MIT](https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Trellis is a lightweight architectural framework inspired by Redux and the microservices architecture. It helps write clean, predictable, and above all, testable applications in Swift by favoring unidirectional data flow, separation of concerns and business logic encapsulation.
-Trellis' philosophy is to be as non-intrusive as possible, exposing a single function (`dispatch`) to the presentation layer and having a very limited API surface otherwise.
+Trellis is a lightweight, declarative architectural framework inspired by Redux and the microservices architecture. It helps write clean, predictable, and above all, testable applications in Swift by favoring unidirectional data flow, separation of concerns and business logic encapsulation.
+Trellis' philosophy is to be as non-intrusive as possible, exposing a single dispatch function to the presentation layer and having a very limited API surface otherwise.
 Built on Swift concurrency model.
 
 ## Index
@@ -28,8 +28,7 @@ Using Swift Package Manager:
 
 ### Services
 
-Conceptually, services encapsulate the business logic and associated data. In a large scale application, each service handles a specific set of tasks that go together well. Trellis provides the means to easily build services and streamlines the service-to-service communication. 
-Services are usually listed using an `enum`: 
+Conceptually, services encapsulate the business logic and associated data. In a large scale application, each service handles a specific set of tasks that go together well. Trellis provides the means to easily build services and streamlines the service-to-service communication.
 
 ```swift
 enum Service {
@@ -148,7 +147,7 @@ After we bootstrap all, we can pass the `pool.dispatch` function to any other en
 
 ```swift
 var body: some Scene {
-    return WindowGroup {
+    return WindowBootstrap {
         AppView()
             .environmentObject(accountState)
             .environmentObject(navigationState)

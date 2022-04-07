@@ -38,12 +38,8 @@ extension Never: Service {
     public var body: Never { fatalError() }
 }
 
-extension Service {
-    func build(in node: Node) throws {
-        try node.addChild(body)
-    }
-}
-
 public struct EmptyService: Service {
     public typealias Body = Never
 }
+
+extension EmptyService: NodeBuilder {}

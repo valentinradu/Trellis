@@ -12,7 +12,7 @@ public struct _TupleService: Service {
     @Environment(\.failureStrategy) private var _failureStrategy
     @Environment(\.dispatch) private var _dispatch
 
-    private let _buildIn: (Node) throws -> Void
+    fileprivate let _buildIn: (Node) throws -> Void
 
     init<A0, A1>(_ tuple: (A0, A1))
         where A0: Service, A1: Service
@@ -100,8 +100,10 @@ public struct _TupleService: Service {
             try node.addChild(tuple.7)
         }
     }
+}
 
-    func build(in node: Node) throws {
-        try _buildIn(node)
+extension _TupleService: NodeBuilder {
+    func buildBody(in node: Node) throws {
+        try self._buildIn(node)
     }
 }
