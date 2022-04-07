@@ -20,7 +20,7 @@ import Foundation
 
 public protocol Action {}
 
-public protocol Service {
+public protocol Service: NodeBuilder {
     associatedtype Body where Body: Service
     @ServiceBuilder var body: Body { get }
     func receive(action _: any Action) async throws
@@ -28,6 +28,14 @@ public protocol Service {
 
 public extension Service {
     func receive(action _: any Action) async throws {}
+
+    func buildBody(in node: Node) throws {
+        if Body.self != Never.self {
+            try node.addChild(body)
+        }
+    }
+
+    func transform(environment _: inout EnvironmentValues) {}
 }
 
 public extension Service where Body == Never {

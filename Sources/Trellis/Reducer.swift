@@ -156,5 +156,3 @@ public struct Reducer<S, C, A>: Service where A: Action {
         return sideEffect
     }
 }
-
-extension Reducer: NodeBuilder {}

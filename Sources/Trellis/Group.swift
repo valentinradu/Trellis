@@ -19,5 +19,3 @@ public class Group<I>: Service
         _items
     }
 }
-
-extension Group: NodeBuilder {}

@@ -103,7 +103,7 @@ public struct _TupleService: Service {
 }
 
 extension _TupleService: NodeBuilder {
-    func buildBody(in node: Node) throws {
-        try self._buildIn(node)
+    public func buildBody(in node: Node) throws {
+        try _buildIn(node)
     }
 }

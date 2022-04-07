@@ -157,14 +157,20 @@ final class ServiceTests: XCTestCase {
     }
     
     func testCustomService() async throws {
+        let otherState = AccountState()
+        let otherContext = AccountContext()
         let cluster = try Bootstrap {
             AccountService()
+                .environment(\.accountContext, value: otherContext)
+                .environment(\.accountState, value: otherState)
         }
         
         try await cluster.send(action: AccountAction.login)
         
-        let actions = _state.actions
-        XCTAssertEqual(actions, [.login])
+        let stateActions = otherState.actions
+        let contextActions = await otherContext.actions
+        XCTAssertEqual(stateActions, [.login])
+        XCTAssertEqual(contextActions, [.login])
     }
 
     func testDirectAccess() async throws {

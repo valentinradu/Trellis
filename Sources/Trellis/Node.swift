@@ -21,22 +21,12 @@ public extension EnvironmentValues {
     }
 }
 
-protocol NodeBuilder {
+public protocol NodeBuilder {
     func buildBody(in node: Node) throws
     func transform(environment: inout EnvironmentValues)
 }
 
-extension Service where Self: NodeBuilder {
-    func buildBody(in node: Node) throws {
-        if Body.self != Never.self {
-            try node.addChild(body)
-        }
-    }
-
-    func transform(environment _: inout EnvironmentValues) {}
-}
-
-class Node {
+public class Node {
     private var _environmentValues: EnvironmentValues!
     private var _receive: ((any Action) async throws -> Void)!
     private var _children: [Node]
@@ -51,12 +41,7 @@ class Node {
         mutatingEnvironmentValues.dispatch = receive
         var mutatingService = service
 
-        if let mutatingService = mutatingService as? NodeBuilder {
-            mutatingService.transform(environment: &mutatingEnvironmentValues)
-        }
-        else {
-            assertionFailure()
-        }
+        mutatingService.transform(environment: &mutatingEnvironmentValues)
 
         let info = try typeInfo(of: S.self)
         for property in info.properties {
@@ -70,12 +55,7 @@ class Node {
         _receive = mutatingService.receive
         _environmentValues = mutatingEnvironmentValues
 
-        if let mutatingService = mutatingService as? NodeBuilder {
-            try mutatingService.buildBody(in: self)
-        }
-        else {
-            assertionFailure()
-        }
+        try mutatingService.buildBody(in: self)
     }
 
     func addChild<S>(_ service: S) throws
