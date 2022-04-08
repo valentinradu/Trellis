@@ -11,36 +11,36 @@ import XCTest
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class ServiceTests: XCTestCase {
     private var _state: AccountState!
-    private var _environment: AccountContext!
+    private var _context: AccountContext!
 
     override func setUp() async throws {
         _state = AccountState()
-        _environment = AccountContext()
+        _context = AccountContext()
     }
 
     func testSingleService() async throws {
         let cluster = try Bootstrap {
             Reducer(state: _state,
-                    context: _environment,
+                    context: _context,
                     reduce: Reducers.record())
         }
 
         try await cluster.send(action: AccountAction.login)
 
         let stateActions = _state.actions
-        let environmentActions = await _environment.actions
+        let contextActions = await _context.actions
         XCTAssertEqual(stateActions, [.login])
-        XCTAssertEqual(environmentActions, [.login])
+        XCTAssertEqual(contextActions, [.login])
     }
 
     func testSerialServices() async throws {
         let cluster = try Bootstrap {
             Group {
                 Reducer(state: _state,
-                        context: _environment,
+                        context: _context,
                         reduce: Reducers.record(service: .service1))
                 Reducer(state: _state,
-                        context: _environment,
+                        context: _context,
                         reduce: Reducers.record(service: .service2))
             }
             .serial()
@@ -50,28 +50,28 @@ final class ServiceTests: XCTestCase {
 
         let stateActions = _state.actions
         let stateServices = _state.services
-        let environmentActions = await _environment.actions
-        let environmentServices = await _environment.services
+        let contextActions = await _context.actions
+        let contextServices = await _context.services
         XCTAssertEqual(stateActions, [.login, .login])
         XCTAssertEqual(stateServices, [.service1, .service2])
-        XCTAssertEqual(environmentActions, [.login, .login])
-        XCTAssertEqual(environmentServices, [.service1, .service2])
+        XCTAssertEqual(contextActions, [.login, .login])
+        XCTAssertEqual(contextServices, [.service1, .service2])
     }
 
     func testStatelessReducer() async throws {
         let cluster = try Bootstrap {
-            Reducer(context: _environment,
+            Reducer(context: _context,
                     reduce: { _, action in
-                        { _, environment in
-                            await environment.add(action: action)
+                        { _, context in
+                            await context.add(action: action)
                         }
                     })
         }
 
         try await cluster.send(action: AccountAction.login)
 
-        let environmentActions = await _environment.actions
-        XCTAssertEqual(environmentActions, [.login])
+        let contextActions = await _context.actions
+        XCTAssertEqual(contextActions, [.login])
     }
     
     func testReducerMiddleware() async throws {
@@ -79,7 +79,7 @@ final class ServiceTests: XCTestCase {
         
         let cluster = try Bootstrap {
             Reducer(state: _state,
-                    context: _environment,
+                    context: _context,
                     reduce: Reducers.record())
             .pre { state, action in
                 await store.update {
@@ -100,7 +100,7 @@ final class ServiceTests: XCTestCase {
     func testReducerMiddlewarePreThrow() async throws {
         let cluster = try Bootstrap {
             Reducer(state: _state,
-                    context: _environment,
+                    context: _context,
                     reduce: Reducers.record())
             .pre { _, _ in
                 throw AccountError.accessDenied
@@ -120,29 +120,29 @@ final class ServiceTests: XCTestCase {
     func testMultipleServices() async throws {
         let cluster = try Bootstrap {
             Reducer(state: _state,
-                    context: _environment,
+                    context: _context,
                     reduce: Reducers.record())
             Reducer(state: _state,
-                    context: _environment,
+                    context: _context,
                     reduce: Reducers.record())
         }
 
         try await cluster.send(action: AccountAction.login)
 
         let stateActions = _state.actions
-        let environmentActions = await _environment.actions
+        let contextActions = await _context.actions
         XCTAssertEqual(stateActions, [.login, .login])
-        XCTAssertEqual(environmentActions, [.login, .login])
+        XCTAssertEqual(contextActions, [.login, .login])
     }
 
     func testErrorTransform() async throws {
         let cluster = try Bootstrap {
             Group {
                 Reducer(state: _state,
-                        context: _environment,
+                        context: _context,
                         reduce: Reducers.error(.accessDenied, on: .login))
                 Reducer(state: _state,
-                        context: _environment,
+                        context: _context,
                         reduce: Reducers.record())
             }
             .transformError { _ in
@@ -177,17 +177,17 @@ final class ServiceTests: XCTestCase {
         let store = Store<[AccountAction]>(initialState: [])
         let dispatch = { (action: any Action) async throws in }
         let reducer = Reducers.record()
-        let environment = AccountContext()
+        let context = AccountContext()
         var state = AccountState()
         if let sideEffect = reducer(&state, .login) {
-            try await sideEffect(dispatch, environment)
+            try await sideEffect(dispatch, context)
         }
 
         let dispatchActions = store.state
         let reducerActions = state.actions
-        let environmentActions = await environment.actions
+        let contextActions = await context.actions
 
         XCTAssertEqual(dispatchActions, [])
-        XCTAssertEqual(reducerActions, environmentActions)
+        XCTAssertEqual(reducerActions, contextActions)
     }
 }

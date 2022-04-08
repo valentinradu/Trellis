@@ -28,31 +28,36 @@ Using Swift Package Manager:
 
 ### Services
 
-Conceptually, services encapsulate the business logic and associated data. In a large scale application, each service handles a specific set of tasks that go together well. Trellis provides the means to easily build services and streamlines the service-to-service communication.
+Conceptually, services encapsulate the business logic and associated data. In a large-scale application, each service handles a specific set of tasks that go together well. Trellis builds services using a DSL:
 
 ```swift
-enum Service {
-    case starter
-    case chords
-    case account
-    case logger
-    case metronome
-    case navigation
-    case tuner
+let cluster = try Bootstrap {
+    Reducer(state: accountState,
+            context: context,
+            reduce: Reducers.account)
+    Reducer(state: playerState,
+            context: context,
+            reduce: Reducers.player)
 }
+
+// ...
+
+try await cluster.send(action: PlayerAction.play)
 ```
 
 ### The state
 
-Each service owns its state, meaning no other entity can mutate it. However, it's common for the presentation layer to keep a reference to the state and watch for changes (readonly).
+Each reducer service owns its state, meaning no other service should mutate it. However, it's common for the presentation layer to keep a reference to the state and watch for changes using a `post` modifier.
 
 ### The reducers
 
-Reducers are functions that mutate the state in response to actions. Their signature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Environment) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`. It is a bit convoluted, but easier in practice and works great for injecting dependencies during testing. A regular reducer looks something like this:
+Reducers are services that mutate state in response to actions. Their reduce function signature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Context) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`, used to publish new actions to the service cluster during the side effect. This works great for injecting dependencies and unit testing without touching the framework itself. A regular reduce function looks something like this:
 
 
 ```swift
-let reducer = { state, action in
+typealias AccountReducer = Reducer<AccountState, AccountAction, AccountContext>
+
+let reduce: AccountReducer.Reduce = { state, action in
     switch action {
         // Modify the state w.r.t. the action
         case .logout:
@@ -65,28 +70,54 @@ let reducer = { state, action in
     // Note: You cannot directly modify the state inside
     // side effects, but you can access it readonly.
     
-    return { [state] dispatch, environment in
+    return { [state] dispatch, context in
         // Do async work 
-        await environment.logout(state.user.id)
+        await context.logout(state.user.id)
         // Then, if required, dispatch again 
         // and repeat all the steps with another action 
         dispatch(action: .logoutComplete)
     }
 }
+
+// ...
+
+let cluster = try Bootstrap {
+    Reducer(state: state,
+            context: context,
+            reduce: reduce)
+}
 ``` 
 
-Each service can can register multiple reducers, responding to different kind of actions.
+You can bootstrap 8 services at once, each responding to different kinds of actions. If you require more, you can group them or create custom services:
 
-### The environment
+let cluster = try Bootstrap {
+    Group {
+        Reducer(state: state,
+                context: context,
+                reduce: reduce)
+        // 7 more here
+    }
+    Group {
+        Reducer(state: otherState,
+                context: otherContext,
+                reduce: otherReduce)
+        // 7 more here
+    }
+    // ...
+}
 
-The environment is Trellis' dependency injection mechanism. It's only available inside the side effects and can hold references to external libraries, utils, the network layer, and so on.
+### The context
+
+The context is Trellis' dependency injection mechanism. It's only available inside the side effects and can hold references to external libraries, utils, the network layer, and so on.
 
 ### The structure
 
-Trellis is very flexible and there are numerous ways to organize code around it. An approach that works great is to start with each service in a separate file containing the related actions, state, reducers, and the environment. Also, keeping all services in a separate module allows hiding information from the presentation layer.
+Trellis is very flexible and there are numerous ways to organize code around it. An approach that works great for larger apps is to start with each service in a separate file containing the related actions, state, reducers, and the context. Also, keeping all services in a separate module allows hiding information from the presentation layer.
 
 ```swift
 // NavigationService.swift
+
+public typealias NavigationReducer = Reducer<NavigationState, NavigationAction, NavigationContext>
 
 public enum NavigationAction: Action {
     case goto(path: String)
@@ -94,12 +125,16 @@ public enum NavigationAction: Action {
 }
 
 public struct NavigationState {
-    var path: String = ""
-    var history: [String] = []
+    public fileprivate(set) var path: String = ""
+    public fileprivate(set) var history: [String] = []
 }
 
-enum NavigationReducers {
-    static var navigate: Reducer<EmptyEnvironment, NavigationState, NavigationAction> {
+public struct NavigationContext {
+    fileprivate let analytics: ThirdPartyAnalytics
+}
+
+extension Reducers {
+    static var navigate: NavigationReducer.Reduce {
         return { state, action in
             switch action {
             case let .goto(path):
@@ -112,10 +147,19 @@ enum NavigationReducers {
                 }
             }
             
-            // We don't need any side effect in this case
-            return .none
+            return { [state] _, context in
+                context.analytics.event("navigation", state.path)
+            }
         }
     }
+}
+
+// Bootstrap.swift
+
+let cluster = try Bootstrap {
+    Reducer(state: navigationState,
+            context: navigationContext,
+            reduce: Reducers.navigate)
 }
 
 ```
@@ -126,85 +170,84 @@ A few things to notice:
 - the state setter is `fileprivate`, only the service can mutate it
 - only the state and actions are exposed outside of the module
 
-This particular reducer doesn't have an environment, nor does it require additional side effects.
-
-Once we have a service, we need to add it to the service pool. A service pool is a managed collection of services that can communicate with each other. In almost all cases, there's one pool per app.
+Alternatively, we could provide a custom service instead:
 
 ```swift
-let pool: ServicePool<Service> = .init()
-let accountState: AccountState = .init()
-let environment: AccountEnvironment = .init()
+// NavigationService.swift
 
-await pool
-    .build(service: .account) // <-- this is the name from `Service` enum
-    .set(initialState: state)
-    .set(environment: environment)
-    .add(reducer: AccountReducers.authentication)
-    .bootstrap()
-``` 
+private struct NavigationStateKey: EnvironmentKey {
+    static var defaultValue: NavigationState = .init()
+}
 
-After we bootstrap all, we can pass the `pool.dispatch` function to any other entities that wish to indirectly mutate the state of our services (like the presentation layer). Trellis already declares a SwiftUI environment key for this:
+private struct NavigationContextKey: EnvironmentKey {
+    static var defaultValue: NavigationContext = .init()
+}
 
-```swift
-var body: some Scene {
-    return WindowBootstrap {
-        AppView()
-            .environmentObject(accountState)
-            .environmentObject(navigationState)
-            ...
-            .environment(\.dispatch, pool.dispatch)
+extension EnvironmentValues {
+    var navigationState: NavigationState {
+        get { self[NavigationStateKey.self] }
+        set { self[NavigationStateKey.self] = newValue }
     }
+
+    var navigationContext: NavigationContext {
+        get { self[NavigationContextKey.self] }
+        set { self[NavigationContextKey.self] = newValue }
+    }
+}
+
+struct NavigationService: Service {
+    @Environment(\.navigationState) private var _state
+    @Environment(\.navigationContext) private var _context
+
+    var body: some Service {
+        Reducer(state: _state,
+                context: _context,
+                reduce: Reducers.navigate)
+    }
+}
+
+// Bootstrap.swift
+
+let cluster = try Bootstrap {
+    NavigationService()
+        .environment(\.navigationState, value: state)
+        .environment(\.navigationContext, value: context)
 }
 ```
 
-Then other views can access the state and the `dispatch` function.
+After bootstrap, we can pass the `cluster.send` function to any other entities that wish to indirectly mutate the state of our services (like the presentation layer).
 
-```swift
-struct OtherView: View {
-    @EnvironmentObject private var navigation: NavigationState
-    @Environment(\.dispatch) private var dispatch
-    // ...
-    
-    var body: some View {
-        // ...
-        Button(action: { 
-            dispatch(action: NavigationAction.go(to: "/dashboard"))
-        }) {
-            Text(.later)
-        }
-    }
-}
-```
+### Single reducer apps
 
-### Single service apps
-
-For small apps, it could make sense to start with a single service and a couple of reducers instead of multiple services.
+For small apps, it could make sense to start with a single reducer and grow from there.
 
 ## Concurrency
 
 Trellis uses the Swift concurrency model and guarantees that:
 
 - all calls that mutate the state will be made on the main thread
-- the `dispatch` function is reentrant and can be used from any thread
+- the `cluster.send` function is reentrant and can be used from any thread
 
-Side effects can be called on any thread, which usually means the environment should be an actor. 
+Side effects can be called on any thread, which means the context should be an actor. 
 
 
 ## Testing
 
-Unit testing is easy since reducers are pure functions and injecting dependencies into side effects is straightforward. To help with the former, Trellis provides `RecordDispatch` for recording all the dispatched actions (instead of passing them to services)
+Unit testing is easy since reducing functions are pure and injecting dependencies into side effects is straightforward. To help with the former, Trellis provides `RecordDispatch` for recording all the dispatched actions (instead of passing them to services)
 
 ```swift
-let dispatch = RecordDispatch()
-let environment = MockedAccountEnvironment()
+let dispatch: Dispatch = { action in
+    // record actions here
+}
+let context = MockedAccountContext()
 var state = AccountState()
 
-if let sideEffect = AccountReducers.authentication(&state, .login) {
+if let sideEffect = Reducers.account(&state, .login) {
     // Assert the resulting state
     // ...
     // Then perform the side effects
-    try await sideEffect(dispatch, environment)
-    // Assert the recorded actions and the state of the mocked environment
+    try await sideEffect(dispatch, context)
+    // Assert the recorded actions and the state of the mocked context
 }
 else {
     // Alternatively, assert if reducer returns any side effects 
