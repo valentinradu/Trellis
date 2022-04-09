@@ -47,7 +47,7 @@ try await cluster.send(action: PlayerAction.play)
 
 ### The state
 
-Each reducer service owns its state, meaning no other service should mutate it. However, it's common for the presentation layer to keep a reference to the state and watch for changes using a `post` modifier.
+Each reducer service owns its state, meaning no other service should mutate it.
 
 ### The reducers
 

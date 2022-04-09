@@ -23,10 +23,10 @@ public extension EnvironmentValues {
 
 public protocol NodeBuilder {
     func buildBody(in node: Node) throws
-    func transform(environment: inout EnvironmentValues)
+    func transform(environmentValues: inout EnvironmentValues)
 }
 
-public class Node {
+public final class Node {
     private var _environmentValues: EnvironmentValues!
     private var _receive: ((any Action) async throws -> Void)!
     private var _children: [Node]
@@ -41,7 +41,7 @@ public class Node {
         mutatingEnvironmentValues.dispatch = receive
         var mutatingService = service
 
-        mutatingService.transform(environment: &mutatingEnvironmentValues)
+        mutatingService.transform(environmentValues: &mutatingEnvironmentValues)
 
         let info = try typeInfo(of: S.self)
         for property in info.properties {
@@ -69,30 +69,24 @@ public class Node {
     func receive(action: any Action) async throws {
         try await _receive(action)
 
-        let tasks = _children.map { item in
-            Task {
-                try await item.receive(action: action)
-            }
-        }
-
         switch _environmentValues.concurrencyStrategy {
         case .concurrent:
             switch _environmentValues.failureStrategy {
             case .fail:
-                try await withThrowingTaskGroup(of: Void.self) { group in
-                    for task in tasks {
+                try await withThrowingTaskGroup(of: Void.self) { [_children] group in
+                    for child in _children {
                         group.addTask {
-                            try await task.value
+                            try await child.receive(action: action)
                         }
                     }
 
                     try await group.waitForAll()
                 }
             case let .catch(handler):
-                await withThrowingTaskGroup(of: Void.self) { [weak self] group in
-                    for task in tasks {
+                await withThrowingTaskGroup(of: Void.self) { [weak self, _children] group in
+                    for child in _children {
                         group.addTask {
-                            try await task.value
+                            try await child.receive(action: action)
                         }
                     }
 
@@ -110,13 +104,13 @@ public class Node {
         case .serial:
             switch _environmentValues.failureStrategy {
             case .fail:
-                for task in tasks {
-                    try await task.value
+                for child in _children {
+                    try await child.receive(action: action)
                 }
             case let .catch(handler):
-                for task in tasks {
+                for child in _children {
                     do {
-                        try await task.value
+                        try await child.receive(action: action)
                     } catch {
                         try await receive(action: handler(error))
                     }

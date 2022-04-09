@@ -7,7 +7,7 @@
 
 import Foundation
 
-public class Bootstrap {
+public struct Bootstrap {
     private var _node: Node
     public init<I>(@ServiceBuilder _ itemsBuilder: () -> I) throws
         where I: Service

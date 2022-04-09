@@ -34,7 +34,12 @@ enum ServiceName {
     case service2
 }
 
-class AccountState {
+final class AccountState: Equatable {
+    static func == (lhs: AccountState, rhs: AccountState) -> Bool {
+        lhs.services == rhs.services
+            && lhs.actions == rhs.actions
+    }
+
     var services: [ServiceName] = []
     var actions: [AccountAction] = []
 }

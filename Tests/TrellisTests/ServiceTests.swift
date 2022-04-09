@@ -33,6 +33,27 @@ final class ServiceTests: XCTestCase {
         XCTAssertEqual(contextActions, [.login])
     }
 
+    func testStateWatchers() async throws {
+        let store = Store<[AccountState]>(initialState: [])
+
+        let cluster = try Bootstrap {
+            Group {
+                Reducer(state: _state,
+                        context: _context,
+                        reduce: Reducers.record())
+            }
+            .watch(AccountState.self) { state in
+                await store.update {
+                    $0.append(state)
+                }
+            }
+        }
+
+        try await cluster.send(action: AccountAction.login)
+
+        XCTAssertEqual(store.state.first, _state)
+    }
+
     func testSerialServices() async throws {
         let cluster = try Bootstrap {
             Group {
@@ -58,6 +79,29 @@ final class ServiceTests: XCTestCase {
         XCTAssertEqual(contextServices, [.service1, .service2])
     }
 
+    func testEmitter() async throws {
+        
+        
+        let stream = AsyncStream<AccountAction> { continuation in
+            for action in [AccountAction.login, AccountAction.error] {
+                continuation.yield(action)
+            }
+            continuation.finish()
+        }
+        
+        let cluster = try Bootstrap {
+            Emitter(stream: stream) {
+                Reducer(state: _state,
+                        context: _context,
+                        reduce: Reducers.record(service: .service1))
+            }
+        }
+        
+        
+        let contextActions = await _context.actions
+        XCTAssertEqual(contextActions, [.login])
+    }
+
     func testStatelessReducer() async throws {
         let cluster = try Bootstrap {
             Reducer(context: _context,
@@ -72,49 +116,6 @@ final class ServiceTests: XCTestCase {
 
         let contextActions = await _context.actions
         XCTAssertEqual(contextActions, [.login])
-    }
-    
-    func testReducerMiddleware() async throws {
-        let store = Store<[AccountAction]>(initialState: [])
-        
-        let cluster = try Bootstrap {
-            Reducer(state: _state,
-                    context: _context,
-                    reduce: Reducers.record())
-            .pre { state, action in
-                await store.update {
-                    $0.append(action)
-                }
-            }
-            .post { state, action in
-                await store.update {
-                    $0.append(action)
-                }
-            }
-        }
-
-        try await cluster.send(action: AccountAction.login)
-        XCTAssertEqual(store.state, [.login, .login])
-    }
-    
-    func testReducerMiddlewarePreThrow() async throws {
-        let cluster = try Bootstrap {
-            Reducer(state: _state,
-                    context: _context,
-                    reduce: Reducers.record())
-            .pre { _, _ in
-                throw AccountError.accessDenied
-            }
-        }
-
-        do {
-            try await cluster.send(action: AccountAction.login)
-        }
-        catch AccountError.accessDenied {
-            return
-        }
-        
-        XCTFail()
     }
 
     func testMultipleServices() async throws {
@@ -155,7 +156,7 @@ final class ServiceTests: XCTestCase {
         let actions = _state.actions
         XCTAssertEqual(actions, [.login, .error])
     }
-    
+
     func testCustomService() async throws {
         let otherState = AccountState()
         let otherContext = AccountContext()
@@ -164,9 +165,9 @@ final class ServiceTests: XCTestCase {
                 .environment(\.accountContext, value: otherContext)
                 .environment(\.accountState, value: otherState)
         }
-        
+
         try await cluster.send(action: AccountAction.login)
-        
+
         let stateActions = otherState.actions
         let contextActions = await otherContext.actions
         XCTAssertEqual(stateActions, [.login])

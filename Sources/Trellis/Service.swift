@@ -35,7 +35,7 @@ public extension Service {
         }
     }
 
-    func transform(environment _: inout EnvironmentValues) {}
+    func transform(environmentValues _: inout EnvironmentValues) {}
 }
 
 public extension Service where Body == Never {

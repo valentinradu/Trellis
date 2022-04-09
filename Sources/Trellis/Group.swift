@@ -7,7 +7,7 @@
 
 import Foundation
 
-public class Group<I>: Service
+public struct Group<I>: Service
     where I: Service
 {
     private var _items: I

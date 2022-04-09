@@ -48,15 +48,15 @@ private struct EnvironmentService<V, W>: Service
     where W: Service
 {
     private let _keyPath: KeyPath<EnvironmentValues, V>
-    private let _value: V
+    private let _transform: (V) -> V
     private let _wrappedService: W
 
     init(_ keyPath: KeyPath<EnvironmentValues, V>,
-         value: V,
+         transform: @escaping (V) -> V,
          @ServiceBuilder builder: () -> W)
     {
         _keyPath = keyPath
-        _value = value
+        _transform = transform
         _wrappedService = builder()
     }
 
@@ -69,18 +69,26 @@ public extension Service {
     func environment<V>(_ keyPath: KeyPath<EnvironmentValues, V>,
                         value: V) -> some Service
     {
-        EnvironmentService(keyPath, value: value) {
+        EnvironmentService(keyPath, transform: { _ in value }) {
+            self
+        }
+    }
+
+    func transformEnvironment<V>(_ keyPath: KeyPath<EnvironmentValues, V>,
+                                 transform: @escaping (V) -> V) -> some Service
+    {
+        EnvironmentService(keyPath, transform: transform) {
             self
         }
     }
 }
 
 extension EnvironmentService: NodeBuilder {
-    func transform(environment: inout EnvironmentValues) {
+    func transform(environmentValues: inout EnvironmentValues) {
         if let keyPath = _keyPath as? WritableKeyPath<EnvironmentValues, V> {
-            environment[keyPath: keyPath] = _value
-        }
-        else {
+            let oldValue = environmentValues[keyPath: keyPath]
+            environmentValues[keyPath: keyPath] = _transform(oldValue)
+        } else {
             assertionFailure()
         }
     }

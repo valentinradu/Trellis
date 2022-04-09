@@ -12,22 +12,22 @@ public enum ConcurrencyStrategy {
     case serial
 }
 
-public struct ConcurrencyStrategyKey: EnvironmentKey {
+public typealias FailureStrategyHandler = (Error) -> any Action
+
+private struct ConcurrencyStrategyKey: EnvironmentKey {
     public static var defaultValue: ConcurrencyStrategy = .concurrent
 }
 
-public typealias FailureStrategyHandler = (Error) -> any Action
-
-public enum FailureStrategy {
+enum FailureStrategy {
     case fail
     case `catch`(FailureStrategyHandler)
 }
 
-public struct FailureStrategyKey: EnvironmentKey {
+private struct FailureStrategyKey: EnvironmentKey {
     public static var defaultValue: FailureStrategy = .fail
 }
 
-public extension EnvironmentValues {
+extension EnvironmentValues {
     private(set) var concurrencyStrategy: ConcurrencyStrategy {
         get { self[ConcurrencyStrategyKey.self] }
         set { self[ConcurrencyStrategyKey.self] = newValue }
