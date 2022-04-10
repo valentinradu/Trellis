@@ -75,6 +75,13 @@ struct AccountService: Service {
     }
 }
 
+class MutableRef<I> {
+    var value: I
+    init(_ value: I) {
+        self.value = value
+    }
+}
+
 typealias AccountReducer = Reducer<AccountState, AccountContext, AccountAction>.Reduce
 
 enum Reducers {

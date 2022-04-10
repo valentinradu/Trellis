@@ -21,53 +21,76 @@ public extension EnvironmentValues {
     }
 }
 
-public protocol NodeBuilder {
-    func buildBody(in node: Node) throws
-    func transform(environmentValues: inout EnvironmentValues)
+public protocol CustomServiceBuilder {
+    func build(in node: inout Node) async throws
 }
 
-public final class Node {
-    private var _environmentValues: EnvironmentValues!
-    private var _receive: ((any Action) async throws -> Void)!
+public protocol CustomBootstrap {
+    mutating func bootstrap() async throws
+}
+
+protocol EnvironmentConsumer {
+    var environmentValues: EnvironmentValues { get set }
+}
+
+protocol EnvironmentTransformer {
+    func transformEnvironment(values: inout EnvironmentValues)
+}
+
+public struct Node {
+    private typealias Receive = (any Action) async throws -> Void
+    private var _environmentValues: EnvironmentValues
+    private var _receive: Receive?
     private var _children: [Node]
 
     init<S>(_ service: S,
-            environmentValues: EnvironmentValues) throws
+            environmentValues: EnvironmentValues) async throws
         where S: Service
     {
+        var service = service
+
         _children = []
+        _environmentValues = environmentValues
 
-        var mutatingEnvironmentValues = environmentValues
-        mutatingEnvironmentValues.dispatch = receive
-        var mutatingService = service
+        if let service = service as? EnvironmentTransformer {
+            service.transformEnvironment(values: &_environmentValues)
+        }
 
-        mutatingService.transform(environmentValues: &mutatingEnvironmentValues)
+        _environmentValues.dispatch = receive
+
+        if let service = service as? CustomServiceBuilder {
+            try await service.build(in: &self)
+        } else if S.Body.self != Never.self {
+            try await addChild(service.body)
+        }
 
         let info = try typeInfo(of: S.self)
         for property in info.properties {
-            if var value = try property.get(from: mutatingService) as? EnvironmentConsumer {
-                value.environmentValues = mutatingEnvironmentValues
+            if var value = try property.get(from: service) as? EnvironmentConsumer {
+                value.environmentValues = _environmentValues
                 try property.set(value: value,
-                                 on: &mutatingService)
+                                 on: &service)
             }
         }
 
-        _receive = mutatingService.receive
-        _environmentValues = mutatingEnvironmentValues
-
-        try mutatingService.buildBody(in: self)
+        if var service = service as? CustomBootstrap & ActionReceiver {
+            try await service.bootstrap()
+            _receive = service.receive
+        } else {
+            _receive = service.receive
+        }
     }
 
-    func addChild<S>(_ service: S) throws
+    mutating func addChild<S>(_ service: S) async throws
         where S: Service
     {
-        let node = try Node(service,
-                            environmentValues: _environmentValues)
+        let node = try await Node(service,
+                                  environmentValues: _environmentValues)
         _children.append(node)
     }
 
     func receive(action: any Action) async throws {
-        try await _receive(action)
+        try await _receive?(action)
 
         switch _environmentValues.concurrencyStrategy {
         case .concurrent:
@@ -83,7 +106,7 @@ public final class Node {
                     try await group.waitForAll()
                 }
             case let .catch(handler):
-                await withThrowingTaskGroup(of: Void.self) { [weak self, _children] group in
+                await withThrowingTaskGroup(of: Void.self) { [_children] group in
                     for child in _children {
                         group.addTask {
                             try await child.receive(action: action)
@@ -92,10 +115,8 @@ public final class Node {
 
                     while let result = await group.nextResult() {
                         if case let .failure(error) = result {
-                            if let self = self {
-                                group.addTask {
-                                    try await self.receive(action: handler(error))
-                                }
+                            group.addTask {
+                                try await receive(action: handler(error))
                             }
                         }
                     }

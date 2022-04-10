@@ -19,7 +19,7 @@ final class ServiceTests: XCTestCase {
     }
 
     func testSingleService() async throws {
-        let cluster = try Bootstrap {
+        let cluster = try await Bootstrap {
             Reducer(state: _state,
                     context: _context,
                     reduce: Reducers.record())
@@ -36,7 +36,7 @@ final class ServiceTests: XCTestCase {
     func testStateWatchers() async throws {
         let store = Store<[AccountState]>(initialState: [])
 
-        let cluster = try Bootstrap {
+        let cluster = try await Bootstrap {
             Group {
                 Reducer(state: _state,
                         context: _context,
@@ -55,7 +55,7 @@ final class ServiceTests: XCTestCase {
     }
 
     func testSerialServices() async throws {
-        let cluster = try Bootstrap {
+        let cluster = try await Bootstrap {
             Group {
                 Reducer(state: _state,
                         context: _context,
@@ -80,30 +80,29 @@ final class ServiceTests: XCTestCase {
     }
 
     func testEmitter() async throws {
-        
-        
-        let stream = AsyncStream<AccountAction> { continuation in
+        let stream = AsyncStream<any Action> { continuation in
             for action in [AccountAction.login, AccountAction.error] {
                 continuation.yield(action)
             }
             continuation.finish()
         }
-        
-        let cluster = try Bootstrap {
+
+        _ = try await Bootstrap {
             Emitter(stream: stream) {
                 Reducer(state: _state,
                         context: _context,
-                        reduce: Reducers.record(service: .service1))
+                        reduce: Reducers.record())
             }
         }
+
         
-        
+
         let contextActions = await _context.actions
-        XCTAssertEqual(contextActions, [.login])
+        XCTAssertEqual(contextActions, [.login, .error])
     }
 
     func testStatelessReducer() async throws {
-        let cluster = try Bootstrap {
+        let cluster = try await Bootstrap {
             Reducer(context: _context,
                     reduce: { _, action in
                         { _, context in
@@ -119,7 +118,7 @@ final class ServiceTests: XCTestCase {
     }
 
     func testMultipleServices() async throws {
-        let cluster = try Bootstrap {
+        let cluster = try await Bootstrap {
             Reducer(state: _state,
                     context: _context,
                     reduce: Reducers.record())
@@ -137,7 +136,7 @@ final class ServiceTests: XCTestCase {
     }
 
     func testErrorTransform() async throws {
-        let cluster = try Bootstrap {
+        let cluster = try await Bootstrap {
             Group {
                 Reducer(state: _state,
                         context: _context,
@@ -160,7 +159,7 @@ final class ServiceTests: XCTestCase {
     func testCustomService() async throws {
         let otherState = AccountState()
         let otherContext = AccountContext()
-        let cluster = try Bootstrap {
+        let cluster = try await Bootstrap {
             AccountService()
                 .environment(\.accountContext, value: otherContext)
                 .environment(\.accountState, value: otherState)

@@ -9,11 +9,11 @@ import Foundation
 
 public struct Bootstrap {
     private var _node: Node
-    public init<I>(@ServiceBuilder _ itemsBuilder: () -> I) throws
+    public init<I>(@ServiceBuilder _ itemsBuilder: () -> I) async throws
         where I: Service
     {
-        _node = try Node(itemsBuilder(),
-                         environmentValues: EnvironmentValues())
+        _node = try await Node(itemsBuilder(),
+                               environmentValues: EnvironmentValues())
     }
 
     public func send(action: any Action) async throws {

@@ -31,7 +31,7 @@ Using Swift Package Manager:
 Conceptually, services encapsulate the business logic and associated data. In a large-scale application, each service handles a specific set of tasks that go together well. Trellis builds services using a DSL:
 
 ```swift
-let cluster = try Bootstrap {
+let cluster = try await Bootstrap {
     Reducer(state: accountState,
             context: context,
             reduce: Reducers.account)
@@ -81,7 +81,7 @@ let reduce: AccountReducer.Reduce = { state, action in
 
 // ...
 
-let cluster = try Bootstrap {
+let cluster = try await Bootstrap {
     Reducer(state: state,
             context: context,
             reduce: reduce)
@@ -90,7 +90,7 @@ let cluster = try Bootstrap {
 
 You can bootstrap 8 services at once, each responding to different kinds of actions. If you require more, you can group them or create custom services:
 
-let cluster = try Bootstrap {
+let cluster = try await Bootstrap {
     Group {
         Reducer(state: state,
                 context: context,
@@ -154,9 +154,9 @@ extension Reducers {
     }
 }
 
-// Bootstrap.swift
+// BuildServices.swift
 
-let cluster = try Bootstrap {
+let cluster = try await Bootstrap {
     Reducer(state: navigationState,
             context: navigationContext,
             reduce: Reducers.navigate)
@@ -206,9 +206,9 @@ struct NavigationService: Service {
     }
 }
 
-// Bootstrap.swift
+// BuildServices.swift
 
-let cluster = try Bootstrap {
+let cluster = try await Bootstrap {
     NavigationService()
         .environment(\.navigationState, value: state)
         .environment(\.navigationContext, value: context)

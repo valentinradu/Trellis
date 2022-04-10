@@ -7,19 +7,19 @@
 
 import Foundation
 
-public struct _TupleService: Service {
+public struct _TupleService: Service, CustomServiceBuilder {
     @Environment(\.concurrencyStrategy) private var _concurrencyStrategy
     @Environment(\.failureStrategy) private var _failureStrategy
     @Environment(\.dispatch) private var _dispatch
 
-    fileprivate let _buildIn: (Node) throws -> Void
+    fileprivate let _buildIn: (inout Node) async throws -> Void
 
     init<A0, A1>(_ tuple: (A0, A1))
         where A0: Service, A1: Service
     {
         _buildIn = { node in
-            try node.addChild(tuple.0)
-            try node.addChild(tuple.1)
+            try await node.addChild(tuple.0)
+            try await node.addChild(tuple.1)
         }
     }
 
@@ -27,9 +27,9 @@ public struct _TupleService: Service {
         where A0: Service, A1: Service, A2: Service
     {
         _buildIn = { node in
-            try node.addChild(tuple.0)
-            try node.addChild(tuple.1)
-            try node.addChild(tuple.2)
+            try await node.addChild(tuple.0)
+            try await node.addChild(tuple.1)
+            try await node.addChild(tuple.2)
         }
     }
 
@@ -37,10 +37,10 @@ public struct _TupleService: Service {
         where A0: Service, A1: Service, A2: Service, A3: Service
     {
         _buildIn = { node in
-            try node.addChild(tuple.0)
-            try node.addChild(tuple.1)
-            try node.addChild(tuple.2)
-            try node.addChild(tuple.3)
+            try await node.addChild(tuple.0)
+            try await node.addChild(tuple.1)
+            try await node.addChild(tuple.2)
+            try await node.addChild(tuple.3)
         }
     }
 
@@ -48,11 +48,11 @@ public struct _TupleService: Service {
         where A0: Service, A1: Service, A2: Service, A3: Service, A4: Service
     {
         _buildIn = { node in
-            try node.addChild(tuple.0)
-            try node.addChild(tuple.1)
-            try node.addChild(tuple.2)
-            try node.addChild(tuple.3)
-            try node.addChild(tuple.4)
+            try await node.addChild(tuple.0)
+            try await node.addChild(tuple.1)
+            try await node.addChild(tuple.2)
+            try await node.addChild(tuple.3)
+            try await node.addChild(tuple.4)
         }
     }
 
@@ -61,12 +61,12 @@ public struct _TupleService: Service {
         A4: Service, A5: Service
     {
         _buildIn = { node in
-            try node.addChild(tuple.0)
-            try node.addChild(tuple.1)
-            try node.addChild(tuple.2)
-            try node.addChild(tuple.3)
-            try node.addChild(tuple.4)
-            try node.addChild(tuple.5)
+            try await node.addChild(tuple.0)
+            try await node.addChild(tuple.1)
+            try await node.addChild(tuple.2)
+            try await node.addChild(tuple.3)
+            try await node.addChild(tuple.4)
+            try await node.addChild(tuple.5)
         }
     }
 
@@ -75,13 +75,13 @@ public struct _TupleService: Service {
         A4: Service, A5: Service, A6: Service
     {
         _buildIn = { node in
-            try node.addChild(tuple.0)
-            try node.addChild(tuple.1)
-            try node.addChild(tuple.2)
-            try node.addChild(tuple.3)
-            try node.addChild(tuple.4)
-            try node.addChild(tuple.5)
-            try node.addChild(tuple.6)
+            try await node.addChild(tuple.0)
+            try await node.addChild(tuple.1)
+            try await node.addChild(tuple.2)
+            try await node.addChild(tuple.3)
+            try await node.addChild(tuple.4)
+            try await node.addChild(tuple.5)
+            try await node.addChild(tuple.6)
         }
     }
 
@@ -90,20 +90,18 @@ public struct _TupleService: Service {
         A4: Service, A5: Service, A6: Service, A7: Service
     {
         _buildIn = { node in
-            try node.addChild(tuple.0)
-            try node.addChild(tuple.1)
-            try node.addChild(tuple.2)
-            try node.addChild(tuple.3)
-            try node.addChild(tuple.4)
-            try node.addChild(tuple.5)
-            try node.addChild(tuple.6)
-            try node.addChild(tuple.7)
+            try await node.addChild(tuple.0)
+            try await node.addChild(tuple.1)
+            try await node.addChild(tuple.2)
+            try await node.addChild(tuple.3)
+            try await node.addChild(tuple.4)
+            try await node.addChild(tuple.5)
+            try await node.addChild(tuple.6)
+            try await node.addChild(tuple.7)
         }
     }
-}
 
-extension _TupleService: NodeBuilder {
-    public func buildBody(in node: Node) throws {
-        try _buildIn(node)
+    public func build(in node: inout Node) async throws {
+        try await _buildIn(&node)
     }
 }

@@ -24,17 +24,9 @@ public struct EnvironmentValues {
     }
 }
 
-protocol EnvironmentConsumer {
-    var environmentValues: EnvironmentValues! { get set }
-}
-
-protocol EnvironmentProducer {
-    var environmentValues: EnvironmentValues! { get set }
-}
-
 @propertyWrapper
 public struct Environment<V>: EnvironmentConsumer {
-    var environmentValues: EnvironmentValues!
+    var environmentValues: EnvironmentValues = .init()
     private let _keyPath: KeyPath<EnvironmentValues, V>
 
     public init(_ keyPath: KeyPath<EnvironmentValues, V>) {
@@ -44,7 +36,7 @@ public struct Environment<V>: EnvironmentConsumer {
     public var wrappedValue: V { environmentValues[keyPath: _keyPath] }
 }
 
-private struct EnvironmentService<V, W>: Service
+private struct EnvironmentService<V, W>: Service, EnvironmentTransformer
     where W: Service
 {
     private let _keyPath: KeyPath<EnvironmentValues, V>
@@ -63,6 +55,15 @@ private struct EnvironmentService<V, W>: Service
     var body: some Service {
         _wrappedService
     }
+
+    func transformEnvironment(values: inout EnvironmentValues) {
+        if let keyPath = _keyPath as? WritableKeyPath<EnvironmentValues, V> {
+            let oldValue = values[keyPath: keyPath]
+            values[keyPath: keyPath] = _transform(oldValue)
+        } else {
+            assertionFailure()
+        }
+    }
 }
 
 public extension Service {
@@ -79,17 +80,6 @@ public extension Service {
     {
         EnvironmentService(keyPath, transform: transform) {
             self
-        }
-    }
-}
-
-extension EnvironmentService: NodeBuilder {
-    func transform(environmentValues: inout EnvironmentValues) {
-        if let keyPath = _keyPath as? WritableKeyPath<EnvironmentValues, V> {
-            let oldValue = environmentValues[keyPath: keyPath]
-            environmentValues[keyPath: keyPath] = _transform(oldValue)
-        } else {
-            assertionFailure()
         }
     }
 }
