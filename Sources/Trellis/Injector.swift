@@ -42,10 +42,6 @@ public extension Service {
         }
 
         let service = try write(environment: environment)
-        
-//        if let service = service as? TaskRunner {
-//            try await service.run()
-//        }
 
         if Body.self == Never.self {
             return InjectedService(head: service,

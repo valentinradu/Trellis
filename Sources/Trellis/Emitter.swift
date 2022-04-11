@@ -31,9 +31,6 @@ public struct Emitter<I>: Service
 
     public var body: some Service {
         _items
-//            .task {
-//                print("a")
-//            }
     }
 
     public func consumeOnBootstrap() -> Self {
