@@ -18,25 +18,25 @@ public enum ServiceBuilder {
     public static func buildBlock<A>(_ value: A) -> some Service
         where A: Service
     {
-        value
+        _TupleService(value)
     }
 
-    public static func buildIf<A>(_ value: A?) -> A?
+    public static func buildIf<A>(_ value: A?) -> some Service
         where A: Service
     {
-        value
+        _TupleService(value)
     }
 
     public static func buildEither<A>(first: A) -> some Service
         where A: Service
     {
-        first
+        _TupleService(first)
     }
 
     public static func buildEither<A>(second: A) -> some Service
         where A: Service
     {
-        second
+        _TupleService(second)
     }
 
     public static func buildBlock<D0, D1>(_ d0: D0,

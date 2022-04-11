@@ -7,7 +7,7 @@
 
 import Foundation
 
-final class Store<State> {
+private final class Store<State> {
     private(set) var state: State
 
     init(initialState: State) {

@@ -21,16 +21,20 @@ import Foundation
 public protocol Action {}
 
 public protocol ActionReceiver {
-    func receive(action _: any Action) async throws
+    func receive(action: any Action) async throws
 }
 
-public protocol Service: ActionReceiver {
+public protocol Injectable {
+    func inject(environment: EnvironmentValues) throws -> ActionReceiver & Injectable
+}
+
+public protocol Service: ActionReceiver, Injectable {
     associatedtype Body where Body: Service
     @ServiceBuilder var body: Body { get }
 }
 
 public extension Service {
-    func receive(action _: any Action) async throws {}
+    func receive(action: any Action) async throws {}
 }
 
 public extension Service where Body == Never {
@@ -42,5 +46,5 @@ extension Never: Service {
 }
 
 public struct EmptyService: Service {
-    public typealias Body = Never
+    public var body: Never { fatalError() }
 }

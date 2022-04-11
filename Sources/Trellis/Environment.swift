@@ -26,7 +26,7 @@ public struct EnvironmentValues {
 
 @propertyWrapper
 public struct Environment<V>: EnvironmentConsumer {
-    var environmentValues: EnvironmentValues = .init()
+    var environmentValues: EnvironmentValues!
     private let _keyPath: KeyPath<EnvironmentValues, V>
 
     public init(_ keyPath: KeyPath<EnvironmentValues, V>) {
@@ -56,12 +56,15 @@ private struct EnvironmentService<V, W>: Service, EnvironmentTransformer
         _wrappedService
     }
 
-    func transformEnvironment(values: inout EnvironmentValues) {
+    func transformEnvironment(values: EnvironmentValues) -> EnvironmentValues {
         if let keyPath = _keyPath as? WritableKeyPath<EnvironmentValues, V> {
+            var values = values
             let oldValue = values[keyPath: keyPath]
             values[keyPath: keyPath] = _transform(oldValue)
+            return values
         } else {
             assertionFailure()
+            return values
         }
     }
 }

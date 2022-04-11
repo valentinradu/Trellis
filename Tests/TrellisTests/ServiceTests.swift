@@ -34,7 +34,7 @@ final class ServiceTests: XCTestCase {
     }
 
     func testStateWatchers() async throws {
-        let store = Store<[AccountState]>(initialState: [])
+        let store = MutableRef<[AccountState]>([])
 
         let cluster = try await Bootstrap {
             Group {
@@ -43,15 +43,13 @@ final class ServiceTests: XCTestCase {
                         reduce: Reducers.record())
             }
             .watch(AccountState.self) { state in
-                await store.update {
-                    $0.append(state)
-                }
+                store.value.append(state)
             }
         }
 
         try await cluster.send(action: AccountAction.login)
 
-        XCTAssertEqual(store.state.first, _state)
+        XCTAssertEqual(store.value.first, _state)
     }
 
     func testSerialServices() async throws {
@@ -93,9 +91,8 @@ final class ServiceTests: XCTestCase {
                         context: _context,
                         reduce: Reducers.record())
             }
+            .consumeOnBootstrap()
         }
-
-        
 
         let contextActions = await _context.actions
         XCTAssertEqual(contextActions, [.login, .error])
@@ -174,7 +171,7 @@ final class ServiceTests: XCTestCase {
     }
 
     func testDirectAccess() async throws {
-        let store = Store<[AccountAction]>(initialState: [])
+        let store = MutableRef<[AccountAction]>([])
         let dispatch = { (action: any Action) async throws in }
         let reducer = Reducers.record()
         let context = AccountContext()
@@ -183,7 +180,7 @@ final class ServiceTests: XCTestCase {
             try await sideEffect(dispatch, context)
         }
 
-        let dispatchActions = store.state
+        let dispatchActions = store.value
         let reducerActions = state.actions
         let contextActions = await context.actions
 

@@ -8,15 +8,17 @@
 import Foundation
 
 public struct Bootstrap {
-    private var _node: Node
+    private var _items: ActionReceiver?
     public init<I>(@ServiceBuilder _ itemsBuilder: () -> I) async throws
         where I: Service
     {
-        _node = try await Node(itemsBuilder(),
-                               environmentValues: EnvironmentValues())
+        var environment = EnvironmentValues()
+        environment.dispatch = send
+        let items = try itemsBuilder().inject(environment: environment)
+        _items = items
     }
 
     public func send(action: any Action) async throws {
-        try await _node.receive(action: action)
+        try await _items?.receive(action: action)
     }
 }
