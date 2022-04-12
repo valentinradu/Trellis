@@ -91,7 +91,7 @@ final class ServiceTests: XCTestCase {
                         context: _context,
                         reduce: Reducers.record())
             }
-            .consumeOnBootstrap()
+            .consume()
         }
 
         let contextActions = await _context.actions

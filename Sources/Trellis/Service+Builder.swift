@@ -18,7 +18,7 @@ public enum ServiceBuilder {
     public static func buildBlock<A>(_ value: A) -> some Service
         where A: Service
     {
-        _TupleService(value)
+        return _TupleService(value)
     }
 
     public static func buildIf<A>(_ value: A?) -> some Service

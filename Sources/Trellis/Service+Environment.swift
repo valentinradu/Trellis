@@ -24,18 +24,38 @@ enum FailureStrategy {
 }
 
 private struct FailureStrategyKey: EnvironmentKey {
-    public static var defaultValue: FailureStrategy = .fail
+    static var defaultValue: FailureStrategy = .fail
+}
+
+public typealias BootstrapHandler = () async throws -> Void
+
+private struct BootstrapKey: EnvironmentKey {
+    static var defaultValue: BootstrapHandler? = nil
+}
+
+private struct IdKey: EnvironmentKey {
+    static var defaultValue: Int = 0
 }
 
 extension EnvironmentValues {
-    private(set) var concurrencyStrategy: ConcurrencyStrategy {
+    var concurrencyStrategy: ConcurrencyStrategy {
         get { self[ConcurrencyStrategyKey.self] }
         set { self[ConcurrencyStrategyKey.self] = newValue }
     }
 
-    private(set) var failureStrategy: FailureStrategy {
+    var failureStrategy: FailureStrategy {
         get { self[FailureStrategyKey.self] }
         set { self[FailureStrategyKey.self] = newValue }
+    }
+
+    var bootstrap: BootstrapHandler? {
+        get { self[BootstrapKey.self] }
+        set { self[BootstrapKey.self] = newValue }
+    }
+
+    var id: Int {
+        get { self[IdKey.self] }
+        set { self[IdKey.self] = newValue }
     }
 }
 
@@ -51,5 +71,9 @@ public extension Service {
 
     func serial() -> some Service {
         environment(\.concurrencyStrategy, value: .serial)
+    }
+
+    func bootstrap(_ closure: @escaping BootstrapHandler) -> some Service {
+        environment(\.bootstrap, value: closure)
     }
 }

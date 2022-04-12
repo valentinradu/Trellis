@@ -69,10 +69,6 @@ public struct Reducer<S, C, A>: Service where A: Action {
         _context = context
     }
 
-    public var body: some Service {
-        EmptyService()
-    }
-
     public func receive(action: any Action) async throws {
         guard let action = action as? A else {
             return

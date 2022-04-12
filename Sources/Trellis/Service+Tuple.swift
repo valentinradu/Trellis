@@ -118,18 +118,19 @@ public struct _TupleService: Service {
         ]
     }
 
-    public func inject(environment: EnvironmentValues) throws -> ActionReceiver & Injectable {
-        var service = try write(environment: environment)
+    public func inject(environment: EnvironmentValues, from parentId: Int) async throws {
+        let id = getId(from: parentId)
+        try store(environment: environment, id: id)
 
-        service._children = try _children.compactMap {
-            try $0.inject(environment: environment)
+        for child in _children {
+            try await child.inject(environment: environment, from: id)
         }
-
-        return InjectedService(head: service,
-                               body: EmptyService())
     }
 
-    public func receive(action: any Action) async throws {
+    public func send(action: any Action, from parentId: Int) async throws {
+        let id = getId(from: parentId)
+        try fetchEnvironment(id: id)
+
         switch _concurrencyStrategy {
         case .concurrent:
             switch _failureStrategy {
@@ -137,7 +138,8 @@ public struct _TupleService: Service {
                 try await withThrowingTaskGroup(of: Void.self) { [_children] group in
                     for child in _children {
                         group.addTask {
-                            try await child.receive(action: action)
+                            try await child.send(action: action,
+                                                 from: id)
                         }
                     }
 
@@ -147,14 +149,16 @@ public struct _TupleService: Service {
                 await withThrowingTaskGroup(of: Void.self) { [_children] group in
                     for child in _children {
                         group.addTask {
-                            try await child.receive(action: action)
+                            try await child.send(action: action,
+                                                 from: id)
                         }
                     }
 
                     while let result = await group.nextResult() {
                         if case let .failure(error) = result {
                             group.addTask {
-                                try await receive(action: handler(error))
+                                try await send(action: handler(error),
+                                               from: parentId)
                             }
                         }
                     }
@@ -164,14 +168,15 @@ public struct _TupleService: Service {
             switch _failureStrategy {
             case .fail:
                 for child in _children {
-                    try await child.receive(action: action)
+                    try await child.send(action: action, from: id)
                 }
             case let .catch(handler):
                 for child in _children {
                     do {
-                        try await child.receive(action: action)
+                        try await child.send(action: action, from: id)
                     } catch {
-                        try await receive(action: handler(error))
+                        try await send(action: handler(error),
+                                       from: parentId)
                     }
                 }
             }

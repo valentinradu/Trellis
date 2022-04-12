@@ -13,6 +13,8 @@ public protocol EnvironmentKey {
 }
 
 public struct EnvironmentValues {
+    static var environments: [AnyHashable: EnvironmentValues] = [:]
+
     private var _values: [ObjectIdentifier: Any] = [:]
     public subscript<K>(_ key: K.Type) -> K.V where K: EnvironmentKey {
         get {
@@ -24,19 +26,33 @@ public struct EnvironmentValues {
     }
 }
 
+class MutableRef<I> {
+    var value: I
+    init(_ value: I) {
+        self.value = value
+    }
+}
+
+protocol EnvironmentConsumer {
+    var environmentValues: MutableRef<EnvironmentValues?> { get }
+}
+
 @propertyWrapper
 public struct Environment<V>: EnvironmentConsumer {
-    var environmentValues: EnvironmentValues!
+    let environmentValues: MutableRef<EnvironmentValues?>
     private let _keyPath: KeyPath<EnvironmentValues, V>
 
     public init(_ keyPath: KeyPath<EnvironmentValues, V>) {
         _keyPath = keyPath
+        environmentValues = MutableRef(nil)
     }
 
-    public var wrappedValue: V { environmentValues[keyPath: _keyPath] }
+    public var wrappedValue: V {
+        environmentValues.value![keyPath: _keyPath]
+    }
 }
 
-private struct EnvironmentService<V, W>: Service, EnvironmentTransformer
+private struct EnvironmentService<V, W>: Service
     where W: Service
 {
     private let _keyPath: KeyPath<EnvironmentValues, V>
@@ -56,15 +72,17 @@ private struct EnvironmentService<V, W>: Service, EnvironmentTransformer
         _wrappedService
     }
 
-    func transformEnvironment(values: EnvironmentValues) -> EnvironmentValues {
+    func inject(environment: EnvironmentValues, from parentId: Int) async throws
+    {
         if let keyPath = _keyPath as? WritableKeyPath<EnvironmentValues, V> {
-            var values = values
-            let oldValue = values[keyPath: keyPath]
-            values[keyPath: keyPath] = _transform(oldValue)
-            return values
+            var environment = environment
+            let id = getId(from: parentId)
+            let oldValue = environment[keyPath: keyPath]
+            environment[keyPath: keyPath] = _transform(oldValue)
+
+            try await body.inject(environment: environment, from: id)
         } else {
             assertionFailure()
-            return values
         }
     }
 }
