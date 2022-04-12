@@ -27,7 +27,7 @@ public protocol ActionReceiver {
 }
 
 public protocol Injectable {
-    func inject(environment: EnvironmentValues, from id: Int) async throws
+    @MainActor func inject(environment: EnvironmentValues, from id: Int) async throws
 }
 
 public protocol Service: ActionReceiver, Injectable {

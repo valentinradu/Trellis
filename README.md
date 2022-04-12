@@ -4,9 +4,42 @@
 [![Xcode](https://img.shields.io/badge/Xcode-13-blue.svg?style=for-the-badge&logo=Xcode&logoColor=white)](https://developer.apple.com/xcode)
 [![MIT](https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Trellis is a lightweight, declarative architectural framework inspired by Redux and the microservices architecture. It helps write clean, predictable, and above all, testable applications in Swift by favoring unidirectional data flow, separation of concerns and business logic encapsulation.
-Trellis' philosophy is to be as non-intrusive as possible, exposing a single dispatch function to the presentation layer and having a very limited API surface otherwise.
-Built on Swift concurrency model.
+Trellis' philosophy is to be as non-intrusive as possible, exposing a single dispatch function to the presentation layer and having a limited API surface otherwise. It features a declarative DSL, bootstrapping services in a few lines of code:
+
+```swift
+let cluster = try await Bootstrap {
+    Group {
+        // An emitter turns a sequence of external
+        // events into actions that can be processed
+        // by other Trellis entities, like reducers.
+        Emitter(stream: notifications.stream) {
+            Reducer(state: notifications.initialState,
+                    context: notifications.context,
+                    reduce: notifications.reduce)
+        }
+        // A reducer takes an initial state and
+        // mutates it based on actions.
+        Reducer(state: account.initialState,
+                context: account.context,
+                reduce: account.reduce)
+    }
+    // All the errors resulting from the group
+    // are transformed into actions that can be 
+    // further processed.
+    .transformError {
+        ErrorAction.error($0)
+    }
+    // We're watching any changes to the state.
+    .watch(AccountState.self) { state in
+        // And update our local copy.
+    }
+}
+
+// `cluster.send` can be shared with any
+// entity that wants to publish events to
+// the cluster, like the presentation layer.
+try await cluster.send(action: AccountAction.login)
+```
 
 ## Index
 * [Installation](#installation)
@@ -28,7 +61,7 @@ Using Swift Package Manager:
 
 ### Services
 
-Conceptually, services encapsulate the business logic and associated data. In a large-scale application, each service handles a specific set of tasks that go together well. Trellis builds services using a DSL:
+Conceptually, services encapsulate business logic and associated data. In a large-scale application, each service handles a specific set of tasks that go together well.
 
 ```swift
 let cluster = try await Bootstrap {
@@ -45,13 +78,9 @@ let cluster = try await Bootstrap {
 try await cluster.send(action: PlayerAction.play)
 ```
 
-### The state
+### The `Reducer` service
 
-Each reducer service owns its state, meaning no other service should mutate it.
-
-### The reducers
-
-Reducers are services that mutate state in response to actions. Their reduce function signature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Context) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`, used to publish new actions to the service cluster during the side effect. This works great for injecting dependencies and unit testing without touching the framework itself. A regular reduce function looks something like this:
+Reducers are services that own their state and mutate it in response to actions. Their reduce function signature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Context) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`, used to publish new actions to the service cluster during the side effect. This works great for injecting dependencies and unit testing without touching the framework itself. A regular reduce function looks something like this:
 
 
 ```swift
@@ -88,7 +117,7 @@ let cluster = try await Bootstrap {
 }
 ``` 
 
-You can bootstrap 8 services at once, each responding to different kinds of actions. If you require more, you can group them or create custom services:
+You can bootstrap 8 services at once, if you require more, you can group them or create custom services:
 
 let cluster = try await Bootstrap {
     Group {
@@ -106,13 +135,9 @@ let cluster = try await Bootstrap {
     // ...
 }
 
-### The context
-
-The context is Trellis' dependency injection mechanism. It's only available inside the side effects and can hold references to external libraries, utils, the network layer, and so on.
-
 ### The structure
 
-Trellis is very flexible and there are numerous ways to organize code around it. An approach that works great for larger apps is to start with each service in a separate file containing the related actions, state, reducers, and the context. Also, keeping all services in a separate module allows hiding information from the presentation layer.
+Trellis is very flexible and there are numerous ways to organize code around it. An approach that works great is to start with each service in a separate file containing the related actions, state, reducers, and the context. Also, keeping all services in a separate module allows hiding information from the presentation layer.
 
 ```swift
 // NavigationService.swift
@@ -225,15 +250,16 @@ For small apps, it could make sense to start with a single reducer and grow from
 
 Trellis uses the Swift concurrency model and guarantees that:
 
+- the service bootstrap always runs on the main thread
 - all calls that mutate the state will be made on the main thread
 - the `cluster.send` function is reentrant and can be used from any thread
 
-Side effects can be called on any thread, which means the context should be an actor. 
+Side effects can be called on any thread, which means their context should be an actor. 
 
 
 ## Testing
 
-Unit testing is easy since reducing functions are pure and injecting dependencies into side effects is straightforward. To help with the former, Trellis provides `RecordDispatch` for recording all the dispatched actions (instead of passing them to services)
+Unit testing reducers is easy since the reducing functions are pure and injecting dependencies into side effects is straightforward.
 
 ```swift
 let dispatch: Dispatch = { action in

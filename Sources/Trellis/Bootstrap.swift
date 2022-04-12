@@ -29,10 +29,13 @@ public struct Bootstrap<I>
         _items = itemsBuilder()
         var environment = EnvironmentValues()
         environment.dispatch = send
-        try await _items.inject(environment: environment, from: rootHashValue)
+        try await _items
+            .inject(environment: environment,
+                    from: rootHashValue)
     }
 
     public func send(action: any Action) async throws {
-        try await _items.send(action: action, from: rootHashValue)
+        try await _items.send(action: action,
+                              from: rootHashValue)
     }
 }
