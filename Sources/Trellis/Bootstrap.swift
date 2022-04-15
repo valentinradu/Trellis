@@ -23,7 +23,7 @@ public extension EnvironmentValues {
 public struct Bootstrap<I>
     where I: Service
 {
-    private let rootHashValue: Int = UUID().hashValue
+    private let rootHashValue = AnyHashable(UUID())
     private var _items: I
     public init(@ServiceBuilder _ itemsBuilder: () -> I) async throws {
         _items = itemsBuilder()

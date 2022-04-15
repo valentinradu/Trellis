@@ -43,7 +43,8 @@ public struct Factory<S, V>: Service where S: Service {
 public typealias FactoryProvider<V> = (V.Type) -> V
 
 public extension Service {
-    func provide<V>(_ type: V.Type, callback: @escaping FactoryProvider<V>) -> some Service {
+    func provide<V>(_ type: V.Type,
+                    callback: @escaping FactoryProvider<V>) -> some Service {
         transformEnvironment(\.factoryProviders) {
             var result = $0
             result[ObjectIdentifier(type)] = {

@@ -34,30 +34,11 @@ enum ServiceName {
     case service2
 }
 
-final class AccountState: Equatable {
-    static func == (lhs: AccountState, rhs: AccountState) -> Bool {
-        lhs.services == rhs.services
-            && lhs.actions == rhs.actions
-    }
-
-    var services: [ServiceName] = []
-    var actions: [AccountAction] = []
-}
-
-private struct AccountStateKey: EnvironmentKey {
-    static var defaultValue: AccountState = .init()
-}
-
 private struct AccountContextKey: EnvironmentKey {
     static var defaultValue: AccountContext = .init()
 }
 
 extension EnvironmentValues {
-    var accountState: AccountState {
-        get { self[AccountStateKey.self] }
-        set { self[AccountStateKey.self] = newValue }
-    }
-
     var accountContext: AccountContext {
         get { self[AccountContextKey.self] }
         set { self[AccountContextKey.self] = newValue }
@@ -65,49 +46,50 @@ extension EnvironmentValues {
 }
 
 struct AccountService: Service {
-    @Environment(\.accountState) private var _state
+    typealias Body = Never
     @Environment(\.accountContext) private var _context
+    private let _delay: Bool
+    private let _name: ServiceName
 
-    var body: some Service {
-        Reducer(state: _state,
-                context: _context,
-                reduce: Reducers.record())
+    init(delay: Bool = false,
+         name: ServiceName = .service1)
+    {
+        _delay = delay
+        _name = name
+    }
+
+    func receive(action: Action) async throws {
+        guard let action = action as? AccountAction else {
+            return
+        }
+
+        if _delay {
+            try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
+        }
+
+        await _context.add(action: action)
+        await _context.add(service: _name)
     }
 }
 
-typealias AccountReducer = Reducer<AccountState, AccountContext, AccountAction>.Reduce
+struct ErrorService: Service {
+    typealias Body = Never
+    private let _error: AccountError
+    private let _action: AccountAction
 
-enum Reducers {
-    static func record(delay: Bool = false, service: ServiceName = .service1) -> AccountReducer {
-        { state, action in
-            state.actions.append(action)
-            state.services.append(service)
-            return { _, env in
-                if delay {
-                    try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
-                }
-
-                await env.add(action: action)
-                await env.add(service: service)
-            }
-        }
-    }
-
-    static func error(_ error: AccountError,
-                      on searchedAction: AccountAction) -> AccountReducer
+    init(error: AccountError,
+         on action: AccountAction)
     {
-        { _, action in
-            { _, _ in
-                if action == searchedAction {
-                    throw error
-                }
-            }
-        }
+        _error = error
+        _action = action
     }
 
-    static func inert() -> AccountReducer {
-        { _, _ in
-            .none
+    func receive(action: Action) async throws {
+        guard let action = action as? AccountAction else {
+            return
+        }
+        if action == _action {
+            throw _error
         }
     }
 }

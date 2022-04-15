@@ -34,7 +34,7 @@ private struct BootstrapKey: EnvironmentKey {
 }
 
 private struct IdKey: EnvironmentKey {
-    static var defaultValue: Int = 0
+    static var defaultValue = AnyHashable(0)
 }
 
 extension EnvironmentValues {
@@ -53,7 +53,7 @@ extension EnvironmentValues {
         set { self[BootstrapKey.self] = newValue }
     }
 
-    var id: Int {
+    var id: AnyHashable {
         get { self[IdKey.self] }
         set { self[IdKey.self] = newValue }
     }
@@ -66,14 +66,17 @@ public extension Service {
     }
 
     func concurrent() -> some Service {
-        environment(\.concurrencyStrategy, value: .concurrent)
+        environment(\.concurrencyStrategy,
+                     value: .concurrent)
     }
 
     func serial() -> some Service {
-        environment(\.concurrencyStrategy, value: .serial)
+        environment(\.concurrencyStrategy,
+                     value: .serial)
     }
 
     func bootstrap(_ closure: @escaping BootstrapHandler) -> some Service {
-        environment(\.bootstrap, value: closure)
+        environment(\.bootstrap,
+                     value: closure)
     }
 }

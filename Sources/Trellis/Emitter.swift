@@ -16,14 +16,18 @@ public struct Emitter<I>: Service
     private let _items: I
     private let _consume: Bool
 
-    public init(stream: AsyncStream<any Action>, @ServiceBuilder _ itemsBuilder: () -> I) {
+    public init(stream: AsyncStream<any Action>,
+                @ServiceBuilder _ itemsBuilder: () -> I) {
         _items = itemsBuilder()
         _stream = stream
         _consume = false
         _task = nil
     }
 
-    private init(stream: AsyncStream<any Action>, consume: Bool, task: Task<Void, Error>?, items: I) {
+    private init(stream: AsyncStream<any Action>,
+                 consume: Bool,
+                 task: Task<Void, Error>?,
+                 items: I) {
         _items = items
         _stream = stream
         _consume = consume

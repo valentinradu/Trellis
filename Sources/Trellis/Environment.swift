@@ -72,11 +72,13 @@ private struct EnvironmentService<V, W>: Service
         _wrappedService
     }
 
-    func inject(environment: EnvironmentValues, from parentId: Int) async throws
+    func inject<ID>(environment: EnvironmentValues,
+                    from parentId: ID) async throws
+        where ID: Identity
     {
         if let keyPath = _keyPath as? WritableKeyPath<EnvironmentValues, V> {
             var environment = environment
-            let id = getId(from: parentId)
+            let id = identity(from: parentId)
             let oldValue = environment[keyPath: keyPath]
             environment[keyPath: keyPath] = _transform(oldValue)
 

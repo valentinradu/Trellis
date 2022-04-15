@@ -21,13 +21,17 @@ import Runtime
 
 public protocol Action {}
 
+public protocol Identity: Hashable {}
+
+extension AnyHashable: Identity {}
+
 public protocol ActionReceiver {
-    func send(action: any Action, from: Int) async throws
+    func send<ID>(action: any Action, from: ID) async throws where ID: Identity
     func receive(action: any Action) async throws
 }
 
 public protocol Injectable {
-    @MainActor func inject(environment: EnvironmentValues, from id: Int) async throws
+    @MainActor func inject<ID>(environment: EnvironmentValues, from: ID) async throws where ID: Identity
 }
 
 public protocol Service: ActionReceiver, Injectable {
@@ -50,21 +54,27 @@ public struct EmptyService: Service {
 public extension Service {
     func receive(action _: any Action) async throws {}
 
-    func send(action: any Action, from parentId: Int) async throws {
-        let id = getId(from: parentId)
+    func send<ID>(action: any Action, from parentId: ID) async throws
+        where ID: Identity
+    {
+        let id = identity(from: parentId)
         try fetchEnvironment(id: id)
         try await receive(action: action)
 
         if Body.self != Never.self {
-            try await body.send(action: action, from: id)
+            try await body.send(action: action,
+                                from: id)
         }
     }
 
-    func inject(environment: EnvironmentValues, from parentId: Int) async throws {
+    func inject<ID>(environment: EnvironmentValues,
+                    from parentId: ID) async throws
+        where ID: Identity
+    {
         var environment = environment
         environment.id = parentId
 
-        let id = getId(from: parentId)
+        let id = identity(from: parentId)
         try store(environment: environment, id: id)
         try fetchEnvironment(id: id)
 
@@ -78,19 +88,26 @@ public extension Service {
         }
     }
 
-    func getId(from parent: Int) -> Int {
+    func identity<ID>(from parentId: ID) -> some Identity
+        where ID: Identity
+    {
         var hasher = Hasher()
-        hasher.combine(parent)
+        hasher.combine(parentId)
         hasher.combine(ObjectIdentifier(Self.self))
-        return hasher.finalize()
+        return AnyHashable(hasher.finalize())
     }
 
-    func store(environment: EnvironmentValues, id: Int) throws {
-        EnvironmentValues.environments[AnyHashable(id)] = environment
+    func store<ID>(environment: EnvironmentValues,
+                   id: ID) throws
+        where ID: Identity
+    {
+        EnvironmentValues.environments[id] = environment
     }
 
-    func fetchEnvironment(id: Int) throws {
-        let environment = EnvironmentValues.environments[AnyHashable(id)]
+    func fetchEnvironment<ID>(id: ID) throws
+        where ID: Identity
+    {
+        let environment = EnvironmentValues.environments[id]
         let info = try typeInfo(of: Self.self)
         for property in info.properties {
             if let value = try property.get(from: self) as? EnvironmentConsumer {

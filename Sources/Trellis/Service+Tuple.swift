@@ -118,8 +118,11 @@ public struct _TupleService: Service {
         ]
     }
 
-    public func inject(environment: EnvironmentValues, from parentId: Int) async throws {
-        let id = getId(from: parentId)
+    public func inject<ID>(environment: EnvironmentValues,
+                           from parentId: ID) async throws
+        where ID: Identity
+    {
+        let id = identity(from: parentId)
         try store(environment: environment, id: id)
 
         for child in _children {
@@ -127,8 +130,11 @@ public struct _TupleService: Service {
         }
     }
 
-    public func send(action: any Action, from parentId: Int) async throws {
-        let id = getId(from: parentId)
+    public func send<ID>(action: any Action,
+                         from parentId: ID) async throws
+        where ID: Identity
+    {
+        let id = identity(from: parentId)
         try fetchEnvironment(id: id)
 
         switch _concurrencyStrategy {
