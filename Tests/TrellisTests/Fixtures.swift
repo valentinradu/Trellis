@@ -46,7 +46,6 @@ extension EnvironmentValues {
 }
 
 struct AccountService: Service {
-    typealias Body = Never
     @Environment(\.accountContext) private var _context
     private let _delay: Bool
     private let _name: ServiceName
@@ -57,23 +56,25 @@ struct AccountService: Service {
         _delay = delay
         _name = name
     }
+    
+    var body: some Service {
+        EmptyService()
+            .on { action in
+                guard let action = action as? AccountAction else {
+                    return
+                }
 
-    func receive(action: Action) async throws {
-        guard let action = action as? AccountAction else {
-            return
-        }
+                if _delay {
+                    try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
+                }
 
-        if _delay {
-            try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
-        }
-
-        await _context.add(action: action)
-        await _context.add(service: _name)
+                await _context.add(action: action)
+                await _context.add(service: _name)
+            }
     }
 }
 
 struct ErrorService: Service {
-    typealias Body = Never
     private let _error: AccountError
     private let _action: AccountAction
 
@@ -83,13 +84,16 @@ struct ErrorService: Service {
         _error = error
         _action = action
     }
-
-    func receive(action: Action) async throws {
-        guard let action = action as? AccountAction else {
-            return
-        }
-        if action == _action {
-            throw _error
-        }
+    
+    var body: some Service {
+        EmptyService()
+            .on { action in
+                guard let action = action as? AccountAction else {
+                    return
+                }
+                if action == _action {
+                    throw _error
+                }
+            }
     }
 }

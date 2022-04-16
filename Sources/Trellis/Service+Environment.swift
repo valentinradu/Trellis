@@ -27,12 +27,6 @@ private struct FailureStrategyKey: EnvironmentKey {
     static var defaultValue: FailureStrategy = .fail
 }
 
-public typealias BootstrapHandler = () async throws -> Void
-
-private struct BootstrapKey: EnvironmentKey {
-    static var defaultValue: BootstrapHandler? = nil
-}
-
 private struct IdKey: EnvironmentKey {
     static var defaultValue = AnyHashable(0)
 }
@@ -46,11 +40,6 @@ extension EnvironmentValues {
     var failureStrategy: FailureStrategy {
         get { self[FailureStrategyKey.self] }
         set { self[FailureStrategyKey.self] = newValue }
-    }
-
-    var bootstrap: BootstrapHandler? {
-        get { self[BootstrapKey.self] }
-        set { self[BootstrapKey.self] = newValue }
     }
 
     var id: AnyHashable {
@@ -67,16 +56,11 @@ public extension Service {
 
     func concurrent() -> some Service {
         environment(\.concurrencyStrategy,
-                     value: .concurrent)
+                    value: .concurrent)
     }
 
     func serial() -> some Service {
         environment(\.concurrencyStrategy,
-                     value: .serial)
-    }
-
-    func bootstrap(_ closure: @escaping BootstrapHandler) -> some Service {
-        environment(\.bootstrap,
-                     value: closure)
+                    value: .serial)
     }
 }

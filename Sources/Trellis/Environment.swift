@@ -13,7 +13,7 @@ public protocol EnvironmentKey {
 }
 
 public struct EnvironmentValues {
-    static var environments: [AnyHashable: EnvironmentValues] = [:]
+    static var all: [AnyHashable: EnvironmentValues] = [:]
 
     private var _values: [ObjectIdentifier: Any] = [:]
     public subscript<K>(_ key: K.Type) -> K.V where K: EnvironmentKey {
@@ -23,13 +23,6 @@ public struct EnvironmentValues {
         set {
             _values[ObjectIdentifier(key)] = newValue
         }
-    }
-}
-
-class MutableRef<I> {
-    var value: I
-    init(_ value: I) {
-        self.value = value
     }
 }
 

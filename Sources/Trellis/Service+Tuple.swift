@@ -13,7 +13,7 @@ public struct _TupleService: Service {
     @Environment(\.failureStrategy) private var _failureStrategy
     @Environment(\.dispatch) private var _dispatch
 
-    private var _children: [any ActionReceiver & Injectable]
+    private var _children: [any ActionSendable & Injectable]
 
     init<A0>(_ value: A0?)
         where A0: Service
@@ -135,7 +135,9 @@ public struct _TupleService: Service {
         where ID: Identity
     {
         let id = identity(from: parentId)
-        try fetchEnvironment(id: id)
+        if let environment = EnvironmentValues.all[id] {
+            try write(environment: environment, id: id)
+        }
 
         switch _concurrencyStrategy {
         case .concurrent:

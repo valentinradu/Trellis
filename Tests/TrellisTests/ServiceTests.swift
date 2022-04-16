@@ -72,10 +72,10 @@ final class ServiceTests: XCTestCase {
                 AccountService()
                 ErrorService(error: .accessDenied, on: .login)
             }
-            .environment(\.accountContext, value: _context)
             .transformError { _ in
                 AccountAction.error
             }
+            .environment(\.accountContext, value: _context)
         }
 
         try await cluster.send(action: AccountAction.login)
