@@ -11,7 +11,7 @@ import Runtime
 public struct _TupleService: Service {
     @Environment(\.concurrencyStrategy) private var _concurrencyStrategy
     @Environment(\.failureStrategy) private var _failureStrategy
-    @Environment(\.dispatch) private var _dispatch
+    @Environment(\.send) private var _send
 
     private var _children: [any ActionSendable & Injectable]
 
@@ -165,7 +165,7 @@ public struct _TupleService: Service {
                     while let result = await group.nextResult() {
                         if case let .failure(error) = result {
                             group.addTask {
-                                try await _dispatch(handler(error))
+                                try await _send(handler(error))
                             }
                         }
                     }
@@ -182,7 +182,7 @@ public struct _TupleService: Service {
                     do {
                         try await child.send(action: action, from: id)
                     } catch {
-                        try await _dispatch(handler(error))
+                        try await _send(handler(error))
                     }
                 }
             }

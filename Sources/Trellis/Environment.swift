@@ -45,6 +45,37 @@ public struct Environment<V>: EnvironmentConsumer {
     }
 }
 
+private typealias EnvironmentObjects = [ObjectIdentifier: AnyObject]
+
+private struct EnvironmentObjectKey: EnvironmentKey {
+    static var defaultValue: EnvironmentObjects = [:]
+}
+
+private extension EnvironmentValues {
+    var environmentObjects: EnvironmentObjects {
+        get { self[EnvironmentObjectKey.self] }
+        set { self[EnvironmentObjectKey.self] = newValue }
+    }
+}
+
+@propertyWrapper
+public struct EnvironmentObject<V>: EnvironmentConsumer
+    where V: AnyObject
+{
+    let environmentValues: MutableRef<EnvironmentValues?>
+
+    public init() {
+        environmentValues = MutableRef(nil)
+    }
+
+    public var wrappedValue: V {
+        let objects = environmentValues.value!.environmentObjects
+        print(V.self)
+        let key = ObjectIdentifier(V.self)
+        return objects[key]! as! V
+    }
+}
+
 private struct EnvironmentTransformer<V, W>: Service
     where W: Service
 {
@@ -87,6 +118,21 @@ public extension Service {
                         value: V) -> some Service
     {
         EnvironmentTransformer(keyPath, transform: { _ in value }) {
+            self
+        }
+    }
+
+    func environmentObject<V>(_ value: V) -> some Service
+        where V: AnyObject
+    {
+        let transform: (EnvironmentObjects) -> EnvironmentObjects = { objects in
+            var objects = objects
+            let key = ObjectIdentifier(V.self)
+            print(type(of: value))
+            objects[key] = value
+            return objects
+        }
+        return EnvironmentTransformer(\.environmentObjects, transform: transform) {
             self
         }
     }

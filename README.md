@@ -4,47 +4,70 @@
 [![Xcode](https://img.shields.io/badge/Xcode-13-blue.svg?style=for-the-badge&logo=Xcode&logoColor=white)](https://developer.apple.com/xcode)
 [![MIT](https://img.shields.io/badge/license-MIT-black.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Trellis' philosophy is to be as non-intrusive as possible, exposing a single dispatch function to the presentation layer and having a limited API surface otherwise. It features a declarative DSL, bootstrapping services in a few lines of code:
+Trellis features a declarative DSL that simplifies service bootstrapping: 
 
 ```swift
 let cluster = try await Bootstrap {
     Group {
-        // An emitter turns a sequence of external
-        // events into actions that can be processed
-        // by other Trellis entities, like reducers.
-        Emitter(stream: notifications.stream) {
-            Reducer(state: notifications.initialState,
-                    context: notifications.context,
-                    reduce: notifications.reduce)
-        }
-        // A reducer takes an initial state and
-        // mutates it based on actions.
-        Reducer(state: generic.initialState,
-                context: generic.context,
-                reduce: generic.reduce)
+        Store(model: IdentityModel.self)
+            .mutate(on: IdentityAction.self) { model, action, send in
+                // ...
+            }
+            .mutate(on: StartUpAction.self) { model, action, send in
+                // ...
+            }
+            .with(model: identityModel)
+        Store(model: ArticlesModel.self)
+            .mutate(on: ArticlesAction.self) { model, action, send in
+                // ...
+            }
+            .with(model: articlesModel)
     }
-    // All the errors resulting from the group
-    // are transformed into actions that can be 
-    // further processed.
+    .emit(using: notificationsStream)
     .transformError {
         ErrorAction.error($0)
     }
-    // We're watching any changes to the state.
-    .watch(GenericState.self) { state in
-        // And update our local copy.
+    .observe(on: IdentityAction.self) {
+        // ...
     }
 }
-
-// `cluster.send` can be shared with any
-// entity that wants to publish events to
-// the cluster, like the presentation layer.
-try await cluster.send(action: GenericAction.login)
 ```
+
+This sets up two services managing the identity of the user and his articles. The resulting cluster exposes only one function, `send`, which can be used to interact with the services without explicitly know which service handles which action.
+
+```swift
+try await cluster.send(action: StartUpAction.appDidCompleteLaunching)
+```
+
+Most of the time we won't declare services like this. Instead, we'd write a custom service wrapping each store:
+
+```swift
+// IdentityService.swift
+struct IdentityService: Service {
+    var body: some Service {
+        Store(model: IdentityModel.self)
+            .mutate(on: IdentityAction.self) { model, action, send in
+                // ...
+            }
+            .mutate(on: StartUpAction.self) { model, action, send in
+                // ...
+            }
+    }
+
+// SomeOtherFile.swift
+let cluster = try await Bootstrap {
+    IdentityService()
+        .with(model: identityModel)
+}
+```
+
+Notice how the actual model is injected from outside the service, enabling dependency injection.
 
 ## Index
 * [Installation](#installation)
 * [Getting started](#getting-started)
 * [Concurrency](#concurrency)
+* [Modifiers](#modifiers)
 * [Testing](#testing)
 * [License](#license)
 
@@ -54,231 +77,63 @@ Using Swift Package Manager:
 ```
 .package(name: "Trellis",
          url: "https://github.com/valentinradu/Trellis.git",
-         .upToNextMinor(from: "0.2.0-beta"))
+         .upToNextMinor(from: "0.3.0-beta"))
 ```
 
 ## Getting started
 
-### Services
+### Actions and services
 
-Conceptually, services encapsulate business logic and associated data. In a large-scale application, each service handles a specific set of tasks that go together well.
+Services are entities that react to actions. They form a tree-like structure that allows each parent service to delegate actions to its children. Most of the entities in Trellis are services. 
 
-```swift
-let cluster = try await Bootstrap {
-    Reducer(state: genericState,
-            context: context,
-            reduce: Reducers.generic)
-    Reducer(state: playerState,
-            context: context,
-            reduce: Reducers.player)
-}
+### Modifiers
 
-// ...
+Modifiers change the behavior of a service. Most modifiers, like `.serial()` will traverse the service tree and apply to all sub-services under it, while some, like `.mutate(on:)` only make sense when applied to the service immediately under it. For more info about modifiers check the appropriate section below.
 
-try await cluster.send(action: PlayerAction.play)
-```
+### Groups
 
-### The `Reducer` service
+Groups are inert services that pass actions to their children without taking any other additional steps. They're mostly used to apply a modifier (e.g. `emit(using:consumeAtBootstrap:)`) to multiple services or to bypass the number of maximum sub-services (8) a service can have.
 
-Reducers are services that own their state and mutate it in response to actions. Their reduce function signature is `(inout State, Action) -> SideEffect?`, where the side effect is a function itself: `(Dispatch, Context) -> Void`. Finally, `Dispatch` is a function as well: `(Action) -> Void`, used to publish new actions to the service cluster during the side effect. This works great for injecting dependencies and unit testing without touching the framework itself. A regular reduce function looks something like this:
+### Stores
 
+Each store encapsulates a model, which in turn, handles a set of tasks (and their associated data) that go together well. Stores allow you to use and mutate the wrapped model each time an action is sent to the cluster.
 
-```swift
-typealias GenericReducer = Reducer<GenericState, GenericAction, GenericContext>
+## Modifiers
 
-let reduce: GenericReducer.Reduce = { state, action in
-    switch action {
-        // Modify the state w.r.t. the action
-        case .logout:
-            state.loading = true
-        // ...
-    }
-    
-    // If additional, async operations are required,
-    // return a side effect. 
-    // Note: You cannot directly modify the state inside
-    // side effects, but you can access it readonly.
-    
-    return { [state] dispatch, context in
-        // Do async work 
-        await context.logout(state.user.id)
-        // Then, if required, dispatch again 
-        // and repeat all the steps with another action 
-        dispatch(action: .logoutComplete)
-    }
-}
+`.emit(using:consumeAtBootstrap:)` - Takes an external source of events (async stream) that outputs actions and feeds them to all services under it. When setting `
 
-// ...
+`.transformError(transformHandler:)` - Turns all errors originating from services under it into actions and feeds them back into the cluster. If the transformed error throws again, the operation will fail and the `send(action:)` function with throw.
 
-let cluster = try await Bootstrap {
-    Reducer(state: state,
-            context: context,
-            reduce: reduce)
-}
-``` 
+`.concurrent()` - Executes all services under it in a concurrent fashion. This is the default.
 
-You can bootstrap 8 services at once, if you require more, you can group them or create custom services:
+`.serial()` - Executes all services under it one after the other. Ideal for cases where you want to something, like the identity of the user, before allowing other services to process the action.
 
-let cluster = try await Bootstrap {
-    Group {
-        Reducer(state: state,
-                context: context,
-                reduce: reduce)
-        // 7 more here
-    }
-    Group {
-        Reducer(state: otherState,
-                context: otherContext,
-                reduce: otherReduce)
-        // 7 more here
-    }
-    // ...
-}
+`.bootstrap(bootstrapHandler:)` - Called right after service creation, it gives services the possibility to initialize state or bootstrap models before handling any actions.
 
-### The structure
+`.observe(observeHandler:)` - Called each time an action is received. Ideal for logging and updating external (e.g. presentation layer) state.
 
-Trellis is very flexible and there are numerous ways to organize code around it. An approach that works great is to start with each service in a separate file containing the related actions, state, reducers, and the context. Also, keeping all services in a separate module allows hiding information from the presentation layer.
+`.mutate(on:mutateHandler:)` - Called each time an action is received. Inside the handler you can mutate the model depending on the received action and send other actions to further processing.
 
-```swift
-// NavigationService.swift
-
-public typealias NavigationReducer = Reducer<NavigationState, NavigationAction, NavigationContext>
-
-public enum NavigationAction: Action {
-    case goto(path: String)
-    case back
-}
-
-public struct NavigationState {
-    public fileprivate(set) var path: String = ""
-    public fileprivate(set) var history: [String] = []
-}
-
-public struct NavigationContext {
-    fileprivate let analytics: ThirdPartyAnalytics
-}
-
-extension Reducers {
-    static var navigate: NavigationReducer.Reduce {
-        return { state, action in
-            switch action {
-            case let .goto(path):
-                state.history.append(state.path)
-                state.path = path
-            case .back:
-                if state.history.count > 0 {
-                    let path = state.history.removeLast()
-                    state.path = path
-                }
-            }
-            
-            return { [state] _, context in
-                context.analytics.event("navigation", state.path)
-            }
-        }
-    }
-}
-
-// BuildServices.swift
-
-let cluster = try await Bootstrap {
-    Reducer(state: navigationState,
-            context: navigationContext,
-            reduce: Reducers.navigate)
-}
-
-```
-
-A few things to notice:
-
-- the service has its own set of actions
-- the state setter is `fileprivate`, only the service can mutate it
-- only the state and actions are exposed outside of the module
-
-Alternatively, we could provide a custom service instead:
-
-```swift
-// NavigationService.swift
-
-private struct NavigationStateKey: EnvironmentKey {
-    static var defaultValue: NavigationState = .init()
-}
-
-private struct NavigationContextKey: EnvironmentKey {
-    static var defaultValue: NavigationContext = .init()
-}
-
-extension EnvironmentValues {
-    var navigationState: NavigationState {
-        get { self[NavigationStateKey.self] }
-        set { self[NavigationStateKey.self] = newValue }
-    }
-
-    var navigationContext: NavigationContext {
-        get { self[NavigationContextKey.self] }
-        set { self[NavigationContextKey.self] = newValue }
-    }
-}
-
-struct NavigationService: Service {
-    @Environment(\.navigationState) private var _state
-    @Environment(\.navigationContext) private var _context
-
-    var body: some Service {
-        Reducer(state: _state,
-                context: _context,
-                reduce: Reducers.navigate)
-    }
-}
-
-// BuildServices.swift
-
-let cluster = try await Bootstrap {
-    NavigationService()
-        .environment(\.navigationState, value: state)
-        .environment(\.navigationContext, value: context)
-}
-```
-
-After bootstrap, we can pass the `cluster.send` function to any other entities that wish to indirectly mutate the state of our services (like the presentation layer).
-
-### Single reducer apps
-
-For small apps, it could make sense to start with a single reducer and grow from there.
+`.with(model:)` - Sets the model for all sub-services under it.
 
 ## Concurrency
 
-Trellis uses the Swift concurrency model and guarantees that:
-
-- the service bootstrap always runs on the main thread
-- all calls that mutate the state will be made on the main thread
-- the `cluster.send` function is reentrant and can be used from any thread
-
-Side effects can be called on any thread, which means their context should be an actor. 
-
+Trellis uses the Swift concurrency model and guarantees that the services will be always built and bootstrapped on the main thread. There is on other guarantee, and for this reason, all models should be actors.
 
 ## Testing
 
-Unit testing reducers is easy since the reducing functions are pure and injecting dependencies into side effects is straightforward.
+With Trellis, unit testing is mostly focused around the models. However, if you wish to also test the service integration, it's easy to do so. You can simply replace the model with a mocked version and the cluster send function with one that records actions instead:
 
 ```swift
-let dispatch: Dispatch = { action in
-    // record actions here
-}
-let context = MockedGenericContext()
-var state = GenericState()
-
-if let sideEffect = Reducers.generic(&state, .login) {
-    // Assert the resulting state
-    // ...
-    // Then perform the side effects
-    try await sideEffect(dispatch, context)
-    // Assert the recorded actions and the state of the mocked context
-}
-else {
-    // Alternatively, assert if reducer returns any side effects 
+// SomeTest.swift
+let cluster = try await Bootstrap {
+    IdentityService()
+        .with(model: mockedIdentityModel)
+        .environment(\.send, recordingSend)
 }
 
+try await cluster.send(action: StartUpAction.appDidCompleteLaunching)
+// Assert the state of the mocked identity model and the recorded actions
 ```
 
 ## License

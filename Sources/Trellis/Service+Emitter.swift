@@ -44,7 +44,7 @@ private struct Emitter<I>: Service
 }
 
 public extension Service {
-    func emit(upstream stream: AsyncStream<any Action>,
+    func emit(using stream: AsyncStream<any Action>,
               consumeAtBootstrap: Bool = false) -> some Service
     {
         Emitter(stream: stream,

@@ -7,16 +7,16 @@
 
 import Foundation
 
-public typealias Dispatch = (any Action) async throws -> Void
+public typealias Send = (any Action) async throws -> Void
 
-private struct DispatchKey: EnvironmentKey {
-    public static var defaultValue: Dispatch = { _ in }
+private struct SendKey: EnvironmentKey {
+    public static var defaultValue: Send = { _ in }
 }
 
 public extension EnvironmentValues {
-    internal(set) var dispatch: Dispatch {
-        get { self[DispatchKey.self] }
-        set { self[DispatchKey.self] = newValue }
+    internal(set) var send: Send {
+        get { self[SendKey.self] }
+        set { self[SendKey.self] = newValue }
     }
 }
 
@@ -28,7 +28,7 @@ public struct Bootstrap<I>
     public init(@ServiceBuilder _ itemsBuilder: () -> I) async throws {
         _items = itemsBuilder()
         var environment = EnvironmentValues()
-        environment.dispatch = send
+        environment.send = send
         try await _items
             .inject(environment: environment,
                     from: rootHashValue)

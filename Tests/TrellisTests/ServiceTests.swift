@@ -56,7 +56,7 @@ final class ServiceTests: XCTestCase {
 
         _ = try await Bootstrap {
             GenericService()
-                .emit(upstream: stream, consumeAtBootstrap: true)
+                .emit(using: stream, consumeAtBootstrap: true)
                 .environment(\.genericContext, value: _context)
         }
 
@@ -85,12 +85,11 @@ final class ServiceTests: XCTestCase {
 
     func testStore() async throws {
         let cluster = try await Bootstrap {
-            Store()
-                .mutate(model: GenericContext.self,
-                        on: GenericAction.self) { context, action in
+            Store(model: GenericContext.self)
+                .mutate(on: GenericAction.self) { context, action, _ in
                     await context.add(action: action)
                 }
-                .model(_context)
+                .with(model: _context)
         }
 
         try await cluster.send(action: GenericAction.login)
