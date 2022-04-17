@@ -28,7 +28,7 @@ private extension EnvironmentValues {
     }
 }
 
-public typealias Mutation<S, A> = (S, A, Send) async throws -> Void where A: Action
+public typealias Mutation<S, A> = (inout S, A, Send) async throws -> Void where A: Action
 
 public extension Service {
     func with<S>(model: S) -> some Service {
@@ -60,9 +60,9 @@ public struct Store<S>: Service {
     {
         let receiver: AnyMutation = {
             if let action = $1 as? A,
-               let store = $0 as? S
+               var store = $0 as? S
             {
-                try await closure(store, action, _send)
+                try await closure(&store, action, _send)
             }
         }
 
