@@ -39,6 +39,7 @@ private struct Observer<W>: Service
 }
 
 public typealias ActionObserver = (any Action) async throws -> Void
+public typealias SingleActionObserver = () async throws -> Void
 
 public extension Service {
     func observe<A>(on _: A.Type, closure: @escaping (A) async throws -> Void) -> some Service
@@ -55,6 +56,20 @@ public extension Service {
 
     func observe(_ closure: @escaping ActionObserver) -> some Service {
         Observer(closure) {
+            self
+        }
+    }
+
+    func observe<A>(on action: A, _ closure: @escaping SingleActionObserver) -> some Service
+        where A: Action & Equatable
+    {
+        let singleActionClosure: ActionObserver = {
+            if let innerAction = $0 as? A, innerAction == action {
+                try await closure()
+            }
+        }
+
+        return Observer(singleActionClosure) {
             self
         }
     }

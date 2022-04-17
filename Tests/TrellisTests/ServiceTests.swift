@@ -97,4 +97,18 @@ final class ServiceTests: XCTestCase {
         let actions = await _context.actions
         XCTAssertEqual(actions, [.login])
     }
+    
+    func testObserve() async throws {
+        let cluster = try await Bootstrap {
+            EmptyService()
+                .observe(on: GenericAction.login) {
+                    await self._context.add(action: .login)
+                }
+        }
+        
+        try await cluster.send(action: GenericAction.login)
+
+        let actions = await _context.actions
+        XCTAssertEqual(actions, [.login])
+    }
 }
