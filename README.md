@@ -19,9 +19,9 @@ let cluster = try await Bootstrap {
         }
         // A reducer takes an initial state and
         // mutates it based on actions.
-        Reducer(state: account.initialState,
-                context: account.context,
-                reduce: account.reduce)
+        Reducer(state: generic.initialState,
+                context: generic.context,
+                reduce: generic.reduce)
     }
     // All the errors resulting from the group
     // are transformed into actions that can be 
@@ -30,7 +30,7 @@ let cluster = try await Bootstrap {
         ErrorAction.error($0)
     }
     // We're watching any changes to the state.
-    .watch(AccountState.self) { state in
+    .watch(GenericState.self) { state in
         // And update our local copy.
     }
 }
@@ -38,7 +38,7 @@ let cluster = try await Bootstrap {
 // `cluster.send` can be shared with any
 // entity that wants to publish events to
 // the cluster, like the presentation layer.
-try await cluster.send(action: AccountAction.login)
+try await cluster.send(action: GenericAction.login)
 ```
 
 ## Index
@@ -65,9 +65,9 @@ Conceptually, services encapsulate business logic and associated data. In a larg
 
 ```swift
 let cluster = try await Bootstrap {
-    Reducer(state: accountState,
+    Reducer(state: genericState,
             context: context,
-            reduce: Reducers.account)
+            reduce: Reducers.generic)
     Reducer(state: playerState,
             context: context,
             reduce: Reducers.player)
@@ -84,9 +84,9 @@ Reducers are services that own their state and mutate it in response to actions.
 
 
 ```swift
-typealias AccountReducer = Reducer<AccountState, AccountAction, AccountContext>
+typealias GenericReducer = Reducer<GenericState, GenericAction, GenericContext>
 
-let reduce: AccountReducer.Reduce = { state, action in
+let reduce: GenericReducer.Reduce = { state, action in
     switch action {
         // Modify the state w.r.t. the action
         case .logout:
@@ -265,10 +265,10 @@ Unit testing reducers is easy since the reducing functions are pure and injectin
 let dispatch: Dispatch = { action in
     // record actions here
 }
-let context = MockedAccountContext()
-var state = AccountState()
+let context = MockedGenericContext()
+var state = GenericState()
 
-if let sideEffect = Reducers.account(&state, .login) {
+if let sideEffect = Reducers.generic(&state, .login) {
     // Assert the resulting state
     // ...
     // Then perform the side effects

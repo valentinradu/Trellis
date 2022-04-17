@@ -7,7 +7,7 @@
 
 import Foundation
 
-private struct ReceiveService<W>: Service
+private struct Observer<W>: Service
     where W: Service
 {
     private let _closure: ActionObserver
@@ -41,8 +41,20 @@ private struct ReceiveService<W>: Service
 public typealias ActionObserver = (any Action) async throws -> Void
 
 public extension Service {
-    func on(_ closure: @escaping ActionObserver) -> some Service {
-        ReceiveService(closure) {
+    func observe<A>(on _: A.Type, closure: @escaping (A) async throws -> Void) -> some Service
+        where A: Action
+    {
+        Observer({ action in
+            if let action = action as? A {
+                try await closure(action)
+            }
+        }) {
+            self
+        }
+    }
+
+    func observe(_ closure: @escaping ActionObserver) -> some Service {
+        Observer(closure) {
             self
         }
     }

@@ -165,8 +165,7 @@ public struct _TupleService: Service {
                     while let result = await group.nextResult() {
                         if case let .failure(error) = result {
                             group.addTask {
-                                try await send(action: handler(error),
-                                               from: parentId)
+                                try await _dispatch(handler(error))
                             }
                         }
                     }
@@ -183,8 +182,7 @@ public struct _TupleService: Service {
                     do {
                         try await child.send(action: action, from: id)
                     } catch {
-                        try await send(action: handler(error),
-                                       from: parentId)
+                        try await _dispatch(handler(error))
                     }
                 }
             }

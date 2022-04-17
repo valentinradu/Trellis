@@ -9,7 +9,7 @@ import Foundation
 
 public typealias BootstrapHandler = () async throws -> Void
 
-private struct BootstrapService<W>: Service
+private struct BootstrapObserver<W>: Service
     where W: Service
 {
     private let _closure: BootstrapHandler
@@ -43,7 +43,7 @@ private struct BootstrapService<W>: Service
 
 public extension Service {
     func bootstrap(_ closure: @escaping BootstrapHandler) -> some Service {
-        BootstrapService(closure) {
+        BootstrapObserver(closure) {
             self
         }
     }

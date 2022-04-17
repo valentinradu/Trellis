@@ -11,7 +11,7 @@ import Runtime
 /**
  Reducers react to **actions** and mutate the state in a predictable way.
  ```
- enum AccountAction: Action {
+ enum GenericAction: Action {
      case login(email: String, password: String)
      case logout
      case resetPassword
@@ -105,13 +105,10 @@ public extension Service {
         where ID: Identity
     {
         let info = try typeInfo(of: Self.self)
-        for (i, property) in info.properties.enumerated() {
+        for property in info.properties {
             let value = try property.get(from: self)
             if let value = value as? EnvironmentConsumer {
                 value.environmentValues.value = environment
-            }
-            if let value = value as? StateConsumer {
-                value.id.value = (id, i)
             }
         }
     }

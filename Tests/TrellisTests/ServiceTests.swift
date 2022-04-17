@@ -10,19 +10,19 @@ import XCTest
 
 @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
 final class ServiceTests: XCTestCase {
-    private var _context: AccountContext!
+    private var _context: GenericContext!
 
     override func setUp() async throws {
-        _context = AccountContext()
+        _context = GenericContext()
     }
 
     func testSingleService() async throws {
         let cluster = try await Bootstrap {
-            AccountService()
-                .environment(\.accountContext, value: _context)
+            GenericService()
+                .environment(\.genericContext, value: _context)
         }
 
-        try await cluster.send(action: AccountAction.login)
+        try await cluster.send(action: GenericAction.login)
 
         let contextActions = await _context.actions
         XCTAssertEqual(contextActions, [.login])
@@ -31,14 +31,14 @@ final class ServiceTests: XCTestCase {
     func testSerialServices() async throws {
         let cluster = try await Bootstrap {
             Group {
-                AccountService(name: .service1)
-                AccountService(name: .service2)
+                GenericService(name: .service1)
+                GenericService(name: .service2)
             }
-            .environment(\.accountContext, value: _context)
+            .environment(\.genericContext, value: _context)
             .serial()
         }
 
-        try await cluster.send(action: AccountAction.login)
+        try await cluster.send(action: GenericAction.login)
 
         let contextActions = await _context.actions
         let contextServices = await _context.services
@@ -48,18 +48,16 @@ final class ServiceTests: XCTestCase {
 
     func testEmitter() async throws {
         let stream = AsyncStream<any Action> { continuation in
-            for action in [AccountAction.login, AccountAction.error] {
+            for action in [GenericAction.login, GenericAction.error] {
                 continuation.yield(action)
             }
             continuation.finish()
         }
 
         _ = try await Bootstrap {
-            Emitter(stream: stream) {
-                AccountService()
-            }
-            .consume()
-            .environment(\.accountContext, value: _context)
+            GenericService()
+                .emit(upstream: stream, consumeAtBootstrap: true)
+                .environment(\.genericContext, value: _context)
         }
 
         let contextActions = await _context.actions
@@ -69,18 +67,35 @@ final class ServiceTests: XCTestCase {
     func testErrorTransform() async throws {
         let cluster = try await Bootstrap {
             Group {
-                AccountService()
+                GenericService()
                 ErrorService(error: .accessDenied, on: .login)
             }
+            .serial()
+            .environment(\.genericContext, value: _context)
             .transformError { _ in
-                AccountAction.error
+                GenericAction.error
             }
-            .environment(\.accountContext, value: _context)
         }
 
-        try await cluster.send(action: AccountAction.login)
+        try await cluster.send(action: GenericAction.login)
 
         let actions = await _context.actions
         XCTAssertEqual(actions, [.login, .error])
+    }
+
+    func testStore() async throws {
+        let cluster = try await Bootstrap {
+            Store()
+                .mutate(model: GenericContext.self,
+                        on: GenericAction.self) { context, action in
+                    await context.add(action: action)
+                }
+                .model(_context)
+        }
+
+        try await cluster.send(action: GenericAction.login)
+
+        let actions = await _context.actions
+        XCTAssertEqual(actions, [.login])
     }
 }

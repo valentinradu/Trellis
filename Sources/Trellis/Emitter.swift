@@ -7,31 +7,23 @@
 
 import Foundation
 
-public struct Emitter<I>: Service
+private struct Emitter<I>: Service
     where I: Service
 {
     @Environment(\.id) private var _id
     private var _task: Task<Void, Error>?
     private let _stream: AsyncStream<any Action>
     private let _items: I
-    private let _consume: Bool
+    private let _consumeAtBootstrap: Bool
 
-    public init(stream: AsyncStream<any Action>,
-                @ServiceBuilder _ itemsBuilder: () -> I) {
+    init(stream: AsyncStream<any Action>,
+         consumeAtBootstrap: Bool,
+         @ServiceBuilder _ itemsBuilder: () -> I)
+    {
         _items = itemsBuilder()
         _stream = stream
-        _consume = false
+        _consumeAtBootstrap = consumeAtBootstrap
         _task = nil
-    }
-
-    private init(stream: AsyncStream<any Action>,
-                 consume: Bool,
-                 task: Task<Void, Error>?,
-                 items: I) {
-        _items = items
-        _stream = stream
-        _consume = consume
-        _task = task
     }
 
     public var body: some Service {
@@ -43,17 +35,21 @@ public struct Emitter<I>: Service
                                        from: _id)
                     }
                 }
-                
-                if _consume {
+
+                if _consumeAtBootstrap {
                     try await task.value
                 }
             }
     }
+}
 
-    public func consume() -> Self {
-        return Emitter(stream: _stream,
-                       consume: true,
-                       task: _task,
-                       items: _items)
+public extension Service {
+    func emit(upstream stream: AsyncStream<any Action>,
+              consumeAtBootstrap: Bool = false) -> some Service
+    {
+        Emitter(stream: stream,
+                consumeAtBootstrap: consumeAtBootstrap) {
+            self
+        }
     }
 }

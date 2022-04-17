@@ -45,7 +45,7 @@ public struct Environment<V>: EnvironmentConsumer {
     }
 }
 
-private struct EnvironmentService<V, W>: Service
+private struct EnvironmentTransformer<V, W>: Service
     where W: Service
 {
     private let _keyPath: KeyPath<EnvironmentValues, V>
@@ -86,7 +86,7 @@ public extension Service {
     func environment<V>(_ keyPath: KeyPath<EnvironmentValues, V>,
                         value: V) -> some Service
     {
-        EnvironmentService(keyPath, transform: { _ in value }) {
+        EnvironmentTransformer(keyPath, transform: { _ in value }) {
             self
         }
     }
@@ -94,7 +94,7 @@ public extension Service {
     func transformEnvironment<V>(_ keyPath: KeyPath<EnvironmentValues, V>,
                                  transform: @escaping (V) -> V) -> some Service
     {
-        EnvironmentService(keyPath, transform: transform) {
+        EnvironmentTransformer(keyPath, transform: transform) {
             self
         }
     }

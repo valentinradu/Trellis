@@ -8,14 +8,14 @@
 @testable import Trellis
 import XCTest
 
-enum AccountError: Error, Equatable {
+enum GenericError: Error, Equatable {
     case accessDenied
 }
 
-actor AccountContext {
-    private(set) var actions: [AccountAction] = []
+actor GenericContext {
+    private(set) var actions: [GenericAction] = []
     private(set) var services: [ServiceName] = []
-    func add(action: AccountAction) {
+    func add(action: GenericAction) {
         actions.append(action)
     }
 
@@ -24,7 +24,7 @@ actor AccountContext {
     }
 }
 
-enum AccountAction: Action, Hashable {
+enum GenericAction: Action, Hashable {
     case login
     case error
 }
@@ -34,19 +34,19 @@ enum ServiceName {
     case service2
 }
 
-private struct AccountContextKey: EnvironmentKey {
-    static var defaultValue: AccountContext = .init()
+private struct GenericContextKey: EnvironmentKey {
+    static var defaultValue: GenericContext = .init()
 }
 
 extension EnvironmentValues {
-    var accountContext: AccountContext {
-        get { self[AccountContextKey.self] }
-        set { self[AccountContextKey.self] = newValue }
+    var genericContext: GenericContext {
+        get { self[GenericContextKey.self] }
+        set { self[GenericContextKey.self] = newValue }
     }
 }
 
-struct AccountService: Service {
-    @Environment(\.accountContext) private var _context
+struct GenericService: Service {
+    @Environment(\.genericContext) private var _context
     private let _delay: Bool
     private let _name: ServiceName
 
@@ -56,14 +56,10 @@ struct AccountService: Service {
         _delay = delay
         _name = name
     }
-    
+
     var body: some Service {
         EmptyService()
-            .on { action in
-                guard let action = action as? AccountAction else {
-                    return
-                }
-
+            .observe(on: GenericAction.self) { action in
                 if _delay {
                     try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
                 }
@@ -75,22 +71,19 @@ struct AccountService: Service {
 }
 
 struct ErrorService: Service {
-    private let _error: AccountError
-    private let _action: AccountAction
+    private let _error: GenericError
+    private let _action: GenericAction
 
-    init(error: AccountError,
-         on action: AccountAction)
+    init(error: GenericError,
+         on action: GenericAction)
     {
         _error = error
         _action = action
     }
-    
+
     var body: some Service {
         EmptyService()
-            .on { action in
-                guard let action = action as? AccountAction else {
-                    return
-                }
+            .observe(on: GenericAction.self) { action in
                 if action == _action {
                     throw _error
                 }
