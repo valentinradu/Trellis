@@ -98,10 +98,13 @@ final class ServiceTests: XCTestCase {
         XCTAssertEqual(actions, [.login])
     }
     
-    func testObserve() async throws {
+    func testMiddleware() async throws {
         let cluster = try await Bootstrap {
             EmptyService()
-                .observe(on: GenericAction.login) {
+                .pre(action: GenericAction.login) {
+                    await self._context.add(action: .login)
+                }
+                .post(action: GenericAction.login) {
                     await self._context.add(action: .login)
                 }
         }
@@ -109,6 +112,6 @@ final class ServiceTests: XCTestCase {
         try await cluster.send(action: GenericAction.login)
 
         let actions = await _context.actions
-        XCTAssertEqual(actions, [.login])
+        XCTAssertEqual(actions, [.login, .login])
     }
 }

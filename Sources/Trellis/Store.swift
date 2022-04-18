@@ -32,23 +32,22 @@ public struct Store<S>: Service {
     @Environment(\.send) private var _send
     private let _mutations: [AnyMutation]
 
+    public typealias Body = Never
+
     public init(model _: S.Type) {
         _mutations = []
     }
-    
+
     private init(model _: S.Type, mutations: [AnyMutation]) {
         _mutations = mutations
     }
 
-    public var body: some Service {
-        EmptyService()
-            .observe {
-                for receiver in _mutations {
-                    if let model = _model {
-                        try await receiver(model, $0, _send)
-                    }
-                }
+    public func receive(action: any Action) async throws {
+        for receiver in _mutations {
+            if let model = _model {
+                try await receiver(model, action, _send)
             }
+        }
     }
 
     public func mutate<A>(on _: A.Type,

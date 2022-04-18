@@ -57,16 +57,17 @@ struct GenericService: Service {
         _name = name
     }
 
-    var body: some Service {
-        EmptyService()
-            .observe(on: GenericAction.self) { action in
-                if _delay {
-                    try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
-                }
+    func receive(action: any Action) async throws {
+        guard let action = action as? GenericAction else {
+            return
+        }
 
-                await _context.add(action: action)
-                await _context.add(service: _name)
-            }
+        if _delay {
+            try await Task.sleep(nanoseconds: 100 * NSEC_PER_MSEC)
+        }
+
+        await _context.add(action: action)
+        await _context.add(service: _name)
     }
 }
 
@@ -83,10 +84,15 @@ struct ErrorService: Service {
 
     var body: some Service {
         EmptyService()
-            .observe(on: GenericAction.self) { action in
-                if action == _action {
-                    throw _error
-                }
-            }
+    }
+
+    func receive(action: any Action) async throws {
+        guard let action = action as? GenericAction else {
+            return
+        }
+
+        if action == _action {
+            throw _error
+        }
     }
 }

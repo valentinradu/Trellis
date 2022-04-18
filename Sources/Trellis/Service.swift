@@ -28,6 +28,7 @@ extension AnyHashable: Identity {}
 public protocol ActionSendable {
     func send<ID>(action: any Action, from: ID) async throws
         where ID: Identity
+    func receive(action: Action) async throws
 }
 
 public protocol Injectable {
@@ -62,11 +63,23 @@ public extension Service {
             try write(environment: environment, id: id)
         }
 
+        if let middleware = self as? Middleware {
+            try await middleware.pre(action: action)
+        }
+
+        try await receive(action: action)
+
         if Body.self != Never.self {
             try await body.send(action: action,
                                 from: id)
         }
+
+        if let middleware = self as? Middleware {
+            try await middleware.post(action: action)
+        }
     }
+
+    func receive(action _: any Action) async throws {}
 
     func inject<ID>(environment: EnvironmentValues,
                     from parentId: ID) async throws
@@ -101,7 +114,7 @@ public extension Service {
         EnvironmentValues.all[id] = environment
     }
 
-    func write<ID>(environment: EnvironmentValues, id: ID) throws
+    func write<ID>(environment: EnvironmentValues, id _: ID) throws
         where ID: Identity
     {
         let info = try typeInfo(of: Self.self)
