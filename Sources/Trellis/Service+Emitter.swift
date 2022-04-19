@@ -10,7 +10,8 @@ import Foundation
 private struct Emitter<I>: Service
     where I: Service
 {
-    @Environment(\.id) private var _id
+    @Environment(\.send) private var _send
+    
     private var _task: Task<Void, Error>?
     private let _stream: AsyncStream<any Action>
     private let _items: I
@@ -31,8 +32,7 @@ private struct Emitter<I>: Service
             .bootstrap {
                 let task = Task {
                     for await action in _stream {
-                        try await send(action: action,
-                                       from: _id)
+                        try await _send(action)
                     }
                 }
 
