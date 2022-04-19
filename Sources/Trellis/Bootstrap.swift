@@ -20,7 +20,8 @@ public extension EnvironmentValues {
     }
 }
 
-public struct Bootstrap<I>
+@MainActor
+public class Bootstrap<I>
     where I: Service
 {
     private let rootHashValue = AnyHashable(UUID())
@@ -28,13 +29,16 @@ public struct Bootstrap<I>
     public init(@ServiceBuilder _ itemsBuilder: () -> I) async throws {
         _items = itemsBuilder()
         var environment = EnvironmentValues()
-        environment.send = send
+        environment.send = { [unowned self] in
+            try await send(action: $0)
+        }
         try await _items
             .inject(environment: environment,
                     from: rootHashValue)
     }
 
-    public func send(action: any Action) async throws {
+    
+    public nonisolated func send(action: any Action) async throws {
         try await _items.send(action: action,
                               from: rootHashValue)
     }
